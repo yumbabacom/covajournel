@@ -35,13 +35,13 @@ export default function AppLayout({ children }: AppLayoutProps) {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-blue-900 dark:to-indigo-900">
       {user ? (
         // Logged-in layout with sidebar
-        <div className="flex">
+        <div className="flex min-h-screen">
           <Sidebar />
-          <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'ml-20' : 'ml-72'} lg:${sidebarCollapsed ? 'ml-20' : 'ml-72'} md:ml-20 sm:ml-20`}>
-            <div className="sticky top-0 z-40">
+          <div className={`flex-1 flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'ml-20' : 'ml-72'}`}>
+            <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b border-gray-200">
               <Header />
             </div>
-            <main className="p-4 md:p-6">
+            <main className="flex-1 p-4 md:p-6 bg-gray-50 min-h-0">
               {children}
             </main>
           </div>
