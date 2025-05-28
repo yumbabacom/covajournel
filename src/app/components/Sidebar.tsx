@@ -72,7 +72,7 @@ export default function Sidebar() {
   return (
     <div className={`fixed left-0 top-0 h-full bg-white/95 dark:bg-gray-900/95 backdrop-blur-2xl border-r border-gray-200/30 dark:border-gray-700/30 shadow-2xl shadow-gray-200/20 dark:shadow-gray-900/20 z-50 transition-all duration-300 ${
       isCollapsed ? 'w-20' : 'w-72'
-    }`}>
+    } lg:${isCollapsed ? 'w-20' : 'w-72'} md:w-20 sm:w-20`}>
       {/* Header */}
       <div className="p-6 border-b border-gray-200/30 dark:border-gray-700/30">
         <div className="flex items-center justify-between">
@@ -91,7 +91,7 @@ export default function Sidebar() {
               </div>
             </Link>
           )}
-          
+
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200"

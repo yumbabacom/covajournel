@@ -23,9 +23,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
       }
     };
 
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    // Only run on client side
+    if (typeof window !== 'undefined') {
+      handleResize();
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }
   }, []);
 
   return (
@@ -34,11 +37,11 @@ export default function AppLayout({ children }: AppLayoutProps) {
         // Logged-in layout with sidebar
         <div className="flex">
           <Sidebar />
-          <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'ml-20' : 'ml-72'}`}>
+          <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'ml-20' : 'ml-72'} lg:${sidebarCollapsed ? 'ml-20' : 'ml-72'} md:ml-20 sm:ml-20`}>
             <div className="sticky top-0 z-40">
               <Header />
             </div>
-            <main className="p-6">
+            <main className="p-4 md:p-6">
               {children}
             </main>
           </div>
