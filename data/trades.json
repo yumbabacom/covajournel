@@ -1,0 +1,24 @@
+[
+  {
+    "userId": "1748356276069bgme99be2",
+    "symbol": "EUR/USD",
+    "category": "Forex",
+    "entryPrice": 1.1,
+    "exitPrice": 1.11,
+    "stopLoss": 1.095,
+    "accountSize": 10000,
+    "riskPercentage": 2,
+    "tradeDirection": "LONG",
+    "status": "PLANNED",
+    "notes": "fgfgfg",
+    "tags": [
+      "scalping",
+      "swing-trade"
+    ],
+    "entryImage": "",
+    "exitImage": "",
+    "id": "1748357176204kb3847twr",
+    "createdAt": "2025-05-27T14:46:16.204Z",
+    "updatedAt": "2025-05-27T14:46:16.204Z"
+  }
+]

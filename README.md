@@ -1,36 +1,108 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Trading Calculator
+
+A comprehensive forex trading calculator built with Next.js and Tailwind CSS. This tool helps traders calculate position sizes, risk amounts, and potential profit/loss scenarios for forex trades.
+
+## Features
+
+### 📊 Core Calculations
+- **Account Size Management**: Input your total account balance
+- **Risk Percentage**: Set your risk per trade (recommended 1-3%)
+- **Position Size Calculation**: Automatically calculates optimal lot size
+- **Risk:Reward Ratio**: Shows the risk-to-reward ratio with visual indicators
+
+### 💱 Trading Pairs
+Supports 24+ major forex pairs including:
+- Major pairs: EUR/USD, GBP/USD, USD/JPY, USD/CHF, AUD/USD, USD/CAD, NZD/USD
+- Cross pairs: EUR/GBP, EUR/JPY, GBP/JPY, AUD/JPY, and many more
+
+### 📈 Trade Analysis
+- **Trade Direction**: Automatically detects long/short positions
+- **Pip Calculations**: Accurate pip calculations for all currency pairs
+- **Profit/Loss Scenarios**: Shows potential outcomes for both winning and losing trades
+- **Visual Indicators**: Color-coded results for easy interpretation
+
+### 🎯 Risk Management
+- **Built-in Validation**: Ensures stop loss levels make sense for trade direction
+- **Risk Management Tips**: Educational content about proper risk management
+- **Visual Feedback**: Color-coded risk:reward ratios (Green: Excellent, Yellow: Acceptable, Red: Poor)
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+- Node.js 18+
+- npm, yarn, or pnpm
 
+### Installation
+
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd nexjou-tailwind
+```
+
+2. Install dependencies:
+```bash
+npm install
+# or
+yarn install
+# or
+pnpm install
+```
+
+3. Run the development server:
 ```bash
 npm run dev
 # or
 yarn dev
 # or
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+4. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## How to Use
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. **Set Account Parameters**:
+   - Enter your account size in USD
+   - Set your risk percentage (1-3% recommended)
 
-## Learn More
+2. **Choose Trading Pair**:
+   - Select from 24+ available forex pairs
+   - The calculator automatically handles different pip values
 
-To learn more about Next.js, take a look at the following resources:
+3. **Enter Trade Details**:
+   - Entry Price: Your planned entry point
+   - Exit Price: Your take profit target
+   - Stop Loss: Your risk management level
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+4. **Review Results**:
+   - Check the calculated position size
+   - Review risk:reward ratio
+   - Analyze potential profit/loss scenarios
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Technology Stack
 
-## Deploy on Vercel
+- **Framework**: Next.js 15.3.2 with App Router
+- **Styling**: Tailwind CSS 4.0
+- **Language**: TypeScript
+- **UI**: Responsive design with dark mode support
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Risk Management Guidelines
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Never risk more than 1-3% of your account per trade
+- Aim for a minimum 1:2 risk-to-reward ratio
+- Always use stop losses to limit potential losses
+- Consider market volatility when setting position sizes
+- Keep a trading journal to track your performance
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This project is open source and available under the [MIT License](LICENSE).
+
+## Disclaimer
+
+This calculator is for educational purposes only. Trading forex involves substantial risk and may not be suitable for all investors. Always consult with a qualified financial advisor before making trading decisions.
