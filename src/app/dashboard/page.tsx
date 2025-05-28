@@ -339,7 +339,7 @@ export default function Dashboard() {
         {/* Stunning Header Section */}
         <div className="text-center mb-12">
           <div className="relative mb-8">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/30 to-purple-500/30 rounded-full blur-3xl animate-pulse"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full blur-3xl animate-pulse"></div>
             <div className="relative inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-3xl shadow-2xl shadow-blue-500/30 transform hover:scale-105 transition-all duration-300">
               <div className="absolute inset-2 bg-gradient-to-br from-blue-400 to-purple-500 rounded-2xl opacity-50"></div>
               <svg className="relative w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -349,27 +349,27 @@ export default function Dashboard() {
           </div>
 
           <div className="space-y-6">
-            <h1 className="text-6xl md:text-7xl font-black bg-gradient-to-r from-white via-blue-200 to-purple-200 bg-clip-text text-transparent leading-tight">
+            <h1 className="text-5xl md:text-6xl font-black bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent leading-tight">
               Trading
               <br />
-              <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
                 Dashboard
               </span>
             </h1>
 
             {selectedAccount && (
               <div className="mb-6">
-                <div className="inline-flex items-center space-x-4 px-8 py-4 bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 shadow-2xl hover:bg-white/15 transition-all duration-300">
+                <div className="inline-flex items-center space-x-4 px-8 py-4 bg-white backdrop-blur-xl rounded-3xl border border-gray-200 shadow-2xl hover:shadow-xl transition-all duration-300">
                   <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center shadow-lg">
                     <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                     </svg>
                   </div>
                   <div>
-                    <p className="text-lg font-bold text-white">
+                    <p className="text-lg font-bold text-gray-900">
                       {selectedAccount.name}
                     </p>
-                    <p className="text-sm text-blue-200">
+                    <p className="text-sm text-blue-600">
                       ${selectedAccount.currentBalance.toLocaleString()} balance
                     </p>
                   </div>
@@ -378,9 +378,9 @@ export default function Dashboard() {
               </div>
             )}
 
-            <p className="text-xl md:text-2xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
               Advanced analytics and insights for
-              <span className="text-blue-400 font-semibold"> {user.name}'s </span>
+              <span className="text-blue-600 font-semibold"> {user.name}'s </span>
               trading performance
             </p>
           </div>
@@ -393,7 +393,7 @@ export default function Dashboard() {
               </svg>
               <span>Add New Trade</span>
             </Link>
-            <Link href="/journal" className="group flex items-center space-x-3 px-8 py-4 bg-white/10 hover:bg-white/20 text-white rounded-2xl transition-all duration-300 font-semibold border border-white/20 hover:border-white/30 backdrop-blur-xl">
+            <Link href="/journal" className="group flex items-center space-x-3 px-8 py-4 bg-white hover:bg-gray-50 text-gray-900 rounded-2xl transition-all duration-300 font-semibold border border-gray-200 hover:border-gray-300 shadow-lg">
               <svg className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
               </svg>
@@ -405,11 +405,11 @@ export default function Dashboard() {
         {/* Stunning Key Performance Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
           {/* Net P&L Card */}
-          <div className="group relative bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 p-8 hover:bg-white/15 transition-all duration-300 hover:scale-105 shadow-2xl">
-            <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-emerald-500/10 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div className="group relative bg-white backdrop-blur-xl rounded-3xl border border-gray-200 p-8 hover:shadow-xl transition-all duration-300 hover:scale-105 shadow-lg">
+            <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-emerald-500/5 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-sm font-bold text-white/70 uppercase tracking-wider">Net P&L</h3>
+                <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wider">Net P&L</h3>
                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg ${
                   stats.netPnL >= 0
                     ? 'bg-gradient-to-br from-green-500 to-emerald-500'
@@ -425,15 +425,15 @@ export default function Dashboard() {
                 </div>
               </div>
               <p className={`text-4xl font-black mb-3 ${
-                stats.netPnL >= 0 ? 'text-green-400' : 'text-red-400'
+                stats.netPnL >= 0 ? 'text-green-600' : 'text-red-600'
               }`}>
                 {stats.netPnL >= 0 ? '+' : ''}${stats.netPnL.toFixed(2)}
               </p>
-              <p className="text-sm text-white/60">Total profit/loss</p>
+              <p className="text-sm text-gray-500">Total profit/loss</p>
               <div className={`mt-4 px-3 py-1 rounded-xl text-xs font-medium ${
                 stats.netPnL >= 0
-                  ? 'bg-green-500/20 text-green-300 border border-green-500/30'
-                  : 'bg-red-500/20 text-red-300 border border-red-500/30'
+                  ? 'bg-green-100 text-green-700 border border-green-200'
+                  : 'bg-red-100 text-red-700 border border-red-200'
               }`}>
                 {stats.netPnL >= 0 ? '📈 Profitable' : '📉 Loss'}
               </div>
@@ -441,20 +441,20 @@ export default function Dashboard() {
           </div>
 
           {/* Win Rate Card */}
-          <div className="group relative bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 p-8 hover:bg-white/15 transition-all duration-300 hover:scale-105 shadow-2xl">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div className="group relative bg-white backdrop-blur-xl rounded-3xl border border-gray-200 p-8 hover:shadow-xl transition-all duration-300 hover:scale-105 shadow-lg">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-sm font-bold text-white/70 uppercase tracking-wider">Win Rate</h3>
+                <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wider">Win Rate</h3>
                 <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center shadow-lg">
                   <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
               </div>
-              <p className="text-4xl font-black text-blue-400 mb-3">{stats.winRate.toFixed(1)}%</p>
-              <p className="text-sm text-white/60">{stats.winTrades}W / {stats.lossTrades}L</p>
-              <div className="mt-4 w-full bg-white/10 rounded-full h-2">
+              <p className="text-4xl font-black text-blue-600 mb-3">{stats.winRate.toFixed(1)}%</p>
+              <p className="text-sm text-gray-500">{stats.winTrades}W / {stats.lossTrades}L</p>
+              <div className="mt-4 w-full bg-gray-200 rounded-full h-2">
                 <div
                   className="bg-gradient-to-r from-blue-500 to-cyan-500 h-2 rounded-full transition-all duration-1000"
                   style={{ width: `${Math.min(stats.winRate, 100)}%` }}
