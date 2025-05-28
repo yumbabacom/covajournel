@@ -18,7 +18,7 @@ This guide will help you deploy CovaJournel to production with proper environmen
    - Create a new cluster
 
 2. **Configure Database:**
-   - Create a database named `covajournal`
+   - Create a database named `tradingcalc` (same as local development)
    - Create a database user with read/write permissions
    - Whitelist your application's IP addresses (or use 0.0.0.0/0 for all IPs)
 
@@ -34,7 +34,7 @@ Create a `.env.local` file (for local development) or set environment variables 
 
 ```env
 # Required Variables
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/covajournal?retryWrites=true&w=majority
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/tradingcalc?retryWrites=true&w=majority
 JWT_SECRET=your-super-secret-jwt-key-here-make-it-long-and-random
 NEXTAUTH_SECRET=your-nextauth-secret-key-here
 NEXTAUTH_URL=https://your-domain.com
