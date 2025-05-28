@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Admin setup error:', error);
     return NextResponse.json(
-      { message: 'Internal server error', error: error.message },
+      { message: 'Internal server error', error: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Admin check error:', error);
     return NextResponse.json(
-      { message: 'Internal server error', error: error.message },
+      { message: 'Internal server error', error: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
