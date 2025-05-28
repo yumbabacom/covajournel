@@ -335,7 +335,8 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+      <div className="container mx-auto px-4 py-8">
         {/* Stunning Header Section */}
         <div className="text-center mb-12">
           <div className="relative mb-8">
@@ -464,27 +465,27 @@ export default function Dashboard() {
           </div>
 
           {/* Profit Factor Card */}
-          <div className="group relative bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 p-8 hover:bg-white/15 transition-all duration-300 hover:scale-105 shadow-2xl">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div className="group relative bg-white backdrop-blur-xl rounded-3xl border border-gray-200 p-8 hover:shadow-xl transition-all duration-300 hover:scale-105 shadow-lg">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-pink-500/5 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-sm font-bold text-white/70 uppercase tracking-wider">Profit Factor</h3>
+                <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wider">Profit Factor</h3>
                 <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg">
                   <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
                   </svg>
                 </div>
               </div>
-              <p className="text-4xl font-black text-purple-400 mb-3">
+              <p className="text-4xl font-black text-purple-600 mb-3">
                 {stats.profitFactor === 999 ? '∞' : stats.profitFactor.toFixed(2)}
               </p>
-              <p className="text-sm text-white/60">Profit/Loss ratio</p>
+              <p className="text-sm text-gray-500">Profit/Loss ratio</p>
               <div className={`mt-4 px-3 py-1 rounded-xl text-xs font-medium ${
                 stats.profitFactor >= 2
-                  ? 'bg-green-500/20 text-green-300 border border-green-500/30'
+                  ? 'bg-green-100 text-green-700 border border-green-200'
                   : stats.profitFactor >= 1.5
-                  ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
-                  : 'bg-red-500/20 text-red-300 border border-red-500/30'
+                  ? 'bg-yellow-100 text-yellow-700 border border-yellow-200'
+                  : 'bg-red-100 text-red-700 border border-red-200'
               }`}>
                 {stats.profitFactor >= 2 ? '🚀 Excellent' : stats.profitFactor >= 1.5 ? '👍 Good' : '⚠️ Needs Work'}
               </div>
@@ -492,22 +493,22 @@ export default function Dashboard() {
           </div>
 
           {/* Total Trades Card */}
-          <div className="group relative bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 p-8 hover:bg-white/15 transition-all duration-300 hover:scale-105 shadow-2xl">
-            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-blue-500/10 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div className="group relative bg-white backdrop-blur-xl rounded-3xl border border-gray-200 p-8 hover:shadow-xl transition-all duration-300 hover:scale-105 shadow-lg">
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-blue-500/5 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-sm font-bold text-white/70 uppercase tracking-wider">Total Trades</h3>
+                <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wider">Total Trades</h3>
                 <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-blue-500 rounded-2xl flex items-center justify-center shadow-lg">
                   <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
                 </div>
               </div>
-              <p className="text-4xl font-black text-indigo-400 mb-3">{stats.totalTrades}</p>
-              <p className="text-sm text-white/60">All time</p>
+              <p className="text-4xl font-black text-indigo-600 mb-3">{stats.totalTrades}</p>
+              <p className="text-sm text-gray-500">All time</p>
               <div className="mt-4 flex items-center space-x-2">
                 <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                <span className="text-xs text-white/60">Active trading</span>
+                <span className="text-xs text-gray-500">Active trading</span>
               </div>
             </div>
           </div>
