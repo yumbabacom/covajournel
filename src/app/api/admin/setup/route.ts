@@ -3,7 +3,7 @@ import { getDatabase, COLLECTIONS } from '@/lib/mongodb';
 import bcrypt from 'bcryptjs';
 
 // POST - Create initial admin user (one-time setup)
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     const db = await getDatabase();
     const usersCollection = db.collection(COLLECTIONS.USERS);
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
 }
 
 // GET - Check if admin exists
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const db = await getDatabase();
     const usersCollection = db.collection(COLLECTIONS.USERS);
