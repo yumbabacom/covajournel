@@ -29,7 +29,7 @@ async function verifyAdmin(request: NextRequest) {
 // GET - Get all trades for a specific user
 export async function GET(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const admin = await verifyAdmin(request);
@@ -40,7 +40,7 @@ export async function GET(
       );
     }
 
-    const { userId } = params;
+    const { userId } = await params;
 
     if (!userId) {
       return NextResponse.json(

@@ -5,7 +5,7 @@ import { ObjectId } from 'mongodb';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verify authentication
@@ -17,12 +17,13 @@ export async function GET(
       );
     }
 
+    const { id } = await params;
     const db = await getDatabase();
     const accountsCollection = db.collection(COLLECTIONS.ACCOUNTS);
 
     // Get account by ID and verify ownership
     const account = await accountsCollection.findOne({
-      _id: new ObjectId(params.id),
+      _id: new ObjectId(id),
       userId: new ObjectId(user.userId)
     });
 
@@ -54,7 +55,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verify authentication
@@ -66,13 +67,14 @@ export async function PUT(
       );
     }
 
+    const { id } = await params;
     const updateData = await request.json();
     const db = await getDatabase();
     const accountsCollection = db.collection(COLLECTIONS.ACCOUNTS);
 
     // Verify account ownership
     const existingAccount = await accountsCollection.findOne({
-      _id: new ObjectId(params.id),
+      _id: new ObjectId(id),
       userId: new ObjectId(user.userId)
     });
 
@@ -123,7 +125,7 @@ export async function PUT(
 
     // Update the account
     const result = await accountsCollection.updateOne(
-      { _id: new ObjectId(params.id) },
+      { _id: new ObjectId(id) },
       { $set: updateFields }
     );
 
@@ -136,7 +138,7 @@ export async function PUT(
 
     // Get updated account
     const updatedAccount = await accountsCollection.findOne({
-      _id: new ObjectId(params.id)
+      _id: new ObjectId(id)
     });
 
     const accountResponse = {
@@ -161,7 +163,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verify authentication
@@ -173,13 +175,14 @@ export async function DELETE(
       );
     }
 
+    const { id } = await params;
     const db = await getDatabase();
     const accountsCollection = db.collection(COLLECTIONS.ACCOUNTS);
     const tradesCollection = db.collection(COLLECTIONS.TRADES);
 
     // Verify account ownership
     const existingAccount = await accountsCollection.findOne({
-      _id: new ObjectId(params.id),
+      _id: new ObjectId(id),
       userId: new ObjectId(user.userId)
     });
 
@@ -192,7 +195,7 @@ export async function DELETE(
 
     // Check if account has trades
     const tradesCount = await tradesCollection.countDocuments({
-      accountId: new ObjectId(params.id)
+      accountId: new ObjectId(id)
     });
 
     if (tradesCount > 0) {
@@ -204,7 +207,7 @@ export async function DELETE(
 
     // Delete the account
     await accountsCollection.deleteOne({
-      _id: new ObjectId(params.id)
+      _id: new ObjectId(id)
     });
 
     return NextResponse.json({
