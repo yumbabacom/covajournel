@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
+import { getDatabase } from '@/lib/mongodb';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const startTime = Date.now();
-    
+
     // Check database connection
     let dbStatus = 'disconnected';
     let dbResponseTime = 0;
-    
+
     try {
       const dbStart = Date.now();
-      await connectToDatabase();
+      await getDatabase();
       dbResponseTime = Date.now() - dbStart;
       dbStatus = 'connected';
     } catch (error) {
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       'JWT_SECRET',
       'NEXTAUTH_SECRET'
     ];
-    
+
     const missingEnvVars = requiredEnvVars.filter(
       envVar => !process.env[envVar]
     );
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
     // Return appropriate status code
     const statusCode = isHealthy ? 200 : 503;
 
-    return NextResponse.json(healthData, { 
+    return NextResponse.json(healthData, {
       status: statusCode,
       headers: {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -80,13 +80,13 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Health check error:', error);
-    
+
     return NextResponse.json({
       status: 'error',
       timestamp: new Date().toISOString(),
       error: 'Health check failed',
       message: error instanceof Error ? error.message : 'Unknown error'
-    }, { 
+    }, {
       status: 500,
       headers: {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -98,11 +98,11 @@ export async function GET(request: NextRequest) {
 }
 
 // Handle HEAD requests for simple health checks
-export async function HEAD(request: NextRequest) {
+export async function HEAD() {
   try {
-    await connectToDatabase();
+    await getDatabase();
     return new NextResponse(null, { status: 200 });
-  } catch (error) {
+  } catch {
     return new NextResponse(null, { status: 503 });
   }
 }
