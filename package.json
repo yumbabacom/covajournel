@@ -6,7 +6,12 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "production": "npm run build && npm start",
+    "setup": "node scripts/create-admin.js",
+    "test-db": "node scripts/test-db.js",
+    "backup": "node scripts/backup-db.js",
+    "deploy": "npm run build"
   },
   "dependencies": {
     "@types/bcryptjs": "^2.4.6",

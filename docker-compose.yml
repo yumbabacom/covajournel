@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # CovaJournel Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongo:27017/covajournel
+      - JWT_SECRET=your-jwt-secret-here
+      - NEXTAUTH_SECRET=your-nextauth-secret-here
+      - NEXTAUTH_URL=http://localhost:3000
+    depends_on:
+      - mongo
+    volumes:
+      - ./public/uploads:/app/public/uploads
+    restart: unless-stopped
+    networks:
+      - covajournel-network
+
+  # MongoDB Database
+  mongo:
+    image: mongo:7.0
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password
+      - MONGO_INITDB_DATABASE=covajournel
+    volumes:
+      - mongo-data:/data/db
+      - ./scripts/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    restart: unless-stopped
+    networks:
+      - covajournel-network
+
+  # MongoDB Express (Database Admin UI)
+  mongo-express:
+    image: mongo-express:1.0.0
+    ports:
+      - "8081:8081"
+    environment:
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=admin
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=password
+      - ME_CONFIG_MONGODB_URL=mongodb://admin:password@mongo:27017/
+      - ME_CONFIG_BASICAUTH_USERNAME=admin
+      - ME_CONFIG_BASICAUTH_PASSWORD=admin
+    depends_on:
+      - mongo
+    restart: unless-stopped
+    networks:
+      - covajournel-network
+
+  # Redis (Optional - for session storage and caching)
+  redis:
+    image: redis:7.2-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - covajournel-network
+    command: redis-server --appendonly yes
+
+volumes:
+  mongo-data:
+    driver: local
+  redis-data:
+    driver: local
+
+networks:
+  covajournel-network:
+    driver: bridge
