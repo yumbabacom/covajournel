@@ -4,28 +4,33 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from './AuthProvider';
-import AccountSelector from './AccountSelector';
+import { useAccount } from './AccountProvider';
+import { useSidebar } from './AppLayout';
+import AddAccountModal from './AddAccountModal';
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
+  const { selectedAccount, accounts, selectAccount } = useAccount();
+  const { isCollapsed, setIsCollapsed } = useSidebar();
   const router = useRouter();
   const pathname = usePathname();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [showAccountDropdown, setShowAccountDropdown] = useState(false);
+  const [isAddAccountModalOpen, setIsAddAccountModalOpen] = useState(false);
 
-  // Auto-collapse on mobile
+  // Close account dropdown when clicking outside
   useEffect(() => {
-    const handleResize = () => {
-      if (typeof window !== 'undefined') {
-        setIsCollapsed(window.innerWidth < 1024);
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (showAccountDropdown && !target.closest('[data-account-dropdown]')) {
+        setShowAccountDropdown(false);
       }
     };
 
-    if (typeof window !== 'undefined') {
-      handleResize();
-      window.addEventListener('resize', handleResize);
-      return () => window.removeEventListener('resize', handleResize);
-    }
-  }, []);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showAccountDropdown]);
 
   if (!user) return null;
 
@@ -77,6 +82,16 @@ export default function Sidebar() {
         </svg>
       ),
       color: 'purple',
+    },
+    {
+      name: 'Strategies',
+      href: '/strategies',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+        </svg>
+      ),
+      color: 'indigo',
     }
   ];
 
@@ -134,6 +149,11 @@ export default function Sidebar() {
               hover: 'hover:bg-slate-800 hover:text-purple-400',
               icon: 'text-purple-400'
             },
+            indigo: {
+              active: 'bg-indigo-600 text-white',
+              hover: 'hover:bg-slate-800 hover:text-indigo-400',
+              icon: 'text-indigo-400'
+            },
             red: {
               active: 'bg-red-600 text-white',
               hover: 'hover:bg-slate-800 hover:text-red-400',
@@ -164,10 +184,96 @@ export default function Sidebar() {
         })}
       </div>
 
-      {/* Account Selector - Only for regular users */}
-      {!user.isAdmin && !isCollapsed && (
+      {/* Account Switcher - Only for non-admin users */}
+      {selectedAccount && !user.isAdmin && (
         <div className="p-4 border-t border-slate-700">
-          <AccountSelector />
+          {!isCollapsed ? (
+            <div className="space-y-3">
+              <div className="relative" data-account-dropdown>
+                <button
+                  onClick={() => setShowAccountDropdown(!showAccountDropdown)}
+                  className="w-full flex items-center space-x-3 p-3 bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-600 transition-all duration-200"
+                >
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 text-left min-w-0">
+                    <p className="text-sm font-semibold text-white truncate">{selectedAccount.name}</p>
+                    <p className="text-xs text-blue-400 font-medium">${selectedAccount.currentBalance.toLocaleString()}</p>
+                  </div>
+                  <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {/* Account Dropdown */}
+                {showAccountDropdown && (
+                  <div className="absolute bottom-full left-0 right-0 mb-2 bg-slate-800 rounded-xl border border-slate-600 shadow-2xl z-50 max-h-64 overflow-y-auto">
+                    <div className="p-3">
+                      <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Switch Account</h3>
+                      {accounts.map((account) => (
+                        <button
+                          key={account.id}
+                          onClick={() => {
+                            selectAccount(account.id);
+                            setShowAccountDropdown(false);
+                          }}
+                          className={`w-full flex items-center space-x-3 p-3 rounded-lg transition-all duration-200 mb-2 ${
+                            selectedAccount?.id === account.id
+                              ? 'bg-blue-600 text-white'
+                              : 'hover:bg-slate-700 text-slate-300'
+                          }`}
+                        >
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                            selectedAccount?.id === account.id
+                              ? 'bg-white/20'
+                              : 'bg-slate-600'
+                          }`}>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                            </svg>
+                          </div>
+                          <div className="flex-1 text-left min-w-0">
+                            <p className="text-sm font-medium truncate">{account.name}</p>
+                            <p className="text-xs opacity-75">${account.currentBalance.toLocaleString()}</p>
+                          </div>
+                        </button>
+                      ))}
+
+                      <button
+                        onClick={() => {
+                          setIsAddAccountModalOpen(true);
+                          setShowAccountDropdown(false);
+                        }}
+                        className="w-full flex items-center space-x-3 p-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-all duration-200 mt-2"
+                      >
+                        <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                          </svg>
+                        </div>
+                        <span className="text-sm font-medium">Add Account</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex justify-center">
+              <button
+                onClick={() => setShowAccountDropdown(!showAccountDropdown)}
+                className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg hover:scale-105 transition-all duration-200"
+                title={selectedAccount.name}
+              >
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                </svg>
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -238,6 +344,16 @@ export default function Sidebar() {
           </div>
         )}
       </div>
+
+      {/* Add Account Modal */}
+      {isAddAccountModalOpen && (
+        <AddAccountModal
+          onClose={() => setIsAddAccountModalOpen(false)}
+          onAccountCreated={() => {
+            setIsAddAccountModalOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }

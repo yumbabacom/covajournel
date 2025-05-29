@@ -68,6 +68,7 @@ export async function POST(request: NextRequest) {
       notes: tradeData.notes || '',
       tags: tradeData.tags || [],
       images: tradeData.images || [],
+      strategyId: tradeData.strategyId ? new ObjectId(tradeData.strategyId) : null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -131,12 +132,37 @@ export async function GET(request: NextRequest) {
       .limit(limit)
       .toArray();
 
-    // Transform trades for response
-    const transformedTrades = trades.map(trade => ({
-      ...trade,
-      id: trade._id.toString(),
-      userId: trade.userId.toString(),
-      accountId: trade.accountId?.toString(),
+    // Get strategy information for trades that have strategyId
+    const strategiesCollection = db.collection(COLLECTIONS.STRATEGIES);
+    const transformedTrades = await Promise.all(trades.map(async (trade) => {
+      let strategy = null;
+      if (trade.strategyId) {
+        try {
+          const strategyDoc = await strategiesCollection.findOne({
+            _id: new ObjectId(trade.strategyId),
+            userId: new ObjectId(user.userId)
+          });
+          if (strategyDoc) {
+            strategy = {
+              id: strategyDoc._id.toString(),
+              name: strategyDoc.name,
+              marketType: strategyDoc.marketType,
+              timeframe: strategyDoc.timeframe,
+            };
+          }
+        } catch (error) {
+          console.error('Error fetching strategy:', error);
+        }
+      }
+
+      return {
+        ...trade,
+        id: trade._id.toString(),
+        userId: trade.userId.toString(),
+        accountId: trade.accountId?.toString(),
+        strategyId: trade.strategyId?.toString(),
+        strategy,
+      };
     }));
 
     return NextResponse.json({

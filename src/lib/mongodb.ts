@@ -61,4 +61,5 @@ export const COLLECTIONS = {
   TRADES: 'trades',
   CALCULATIONS: 'calculations',
   ACCOUNTS: 'accounts',
+  STRATEGIES: 'strategies',
 } as const;

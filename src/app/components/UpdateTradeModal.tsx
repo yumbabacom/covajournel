@@ -121,31 +121,31 @@ export default function UpdateTradeModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/50 w-full max-w-4xl max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-5xl max-h-[95vh] overflow-hidden">
         {/* Header */}
-        <div className="p-8 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border-b border-gray-200/50 dark:border-gray-700/50">
+        <div className="bg-gradient-to-r from-slate-50 to-blue-50 border-b border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center shadow-lg">
+              <div className="w-16 h-16 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center shadow-lg">
                 <span className="text-white font-bold text-2xl">
                   {trade.symbol.split('/')[0].charAt(0)}
                 </span>
               </div>
               <div>
-                <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+                <h2 className="text-3xl font-bold text-gray-900">
                   Update Trade: {trade.symbol}
                 </h2>
-                <p className="text-lg text-gray-600 dark:text-gray-400 mt-1">
+                <p className="text-lg text-gray-600 mt-1">
                   Modify trade details and upload closing images
                 </p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-3 hover:bg-white/50 dark:hover:bg-gray-700/50 rounded-xl transition-all duration-200 hover:scale-110"
+              className="w-10 h-10 bg-white hover:bg-gray-50 border border-gray-200 rounded-full flex items-center justify-center transition-colors duration-200 shadow-sm"
             >
-              <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -153,12 +153,12 @@ export default function UpdateTradeModal({
         </div>
 
         {/* Content */}
-        <div className="p-8 max-h-[calc(90vh-200px)] overflow-y-auto">
+        <div className="p-8 max-h-[calc(95vh-200px)] overflow-y-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Left Column - Trade Update Form */}
             <div className="space-y-6">
               <div>
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                   <svg className="w-5 h-5 mr-2 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
@@ -168,31 +168,31 @@ export default function UpdateTradeModal({
 
               {/* Status Update */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
                   Trade Status
                 </label>
                 <div className="grid grid-cols-2 gap-4">
                   <button
                     type="button"
                     onClick={() => setUpdateData(prev => ({ ...prev, status: 'WIN' }))}
-                    className={`p-4 rounded-2xl border-2 transition-all duration-300 ${
+                    className={`p-5 rounded-xl border-2 transition-all duration-300 ${
                       updateData.status === 'WIN'
-                        ? 'border-green-500 bg-green-50 dark:bg-green-900/30 shadow-lg shadow-green-500/25'
-                        : 'border-gray-200 dark:border-gray-600 bg-white/50 dark:bg-gray-800/50 hover:border-green-300 dark:hover:border-green-600'
+                        ? 'border-green-500 bg-green-50 shadow-lg'
+                        : 'border-gray-200 bg-white hover:border-green-300 hover:bg-green-50'
                     }`}
                   >
                     <div className="text-center">
                       <div className={`w-12 h-12 mx-auto mb-3 rounded-xl flex items-center justify-center ${
                         updateData.status === 'WIN'
                           ? 'bg-green-500 text-white'
-                          : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                          : 'bg-gray-200 text-gray-600'
                       }`}>
                         🏆
                       </div>
                       <p className={`font-bold ${
                         updateData.status === 'WIN'
-                          ? 'text-green-700 dark:text-green-300'
-                          : 'text-gray-700 dark:text-gray-300'
+                          ? 'text-green-700'
+                          : 'text-gray-700'
                       }`}>
                         Win
                       </p>
@@ -202,24 +202,24 @@ export default function UpdateTradeModal({
                   <button
                     type="button"
                     onClick={() => setUpdateData(prev => ({ ...prev, status: 'LOSS' }))}
-                    className={`p-4 rounded-2xl border-2 transition-all duration-300 ${
+                    className={`p-5 rounded-xl border-2 transition-all duration-300 ${
                       updateData.status === 'LOSS'
-                        ? 'border-red-500 bg-red-50 dark:bg-red-900/30 shadow-lg shadow-red-500/25'
-                        : 'border-gray-200 dark:border-gray-600 bg-white/50 dark:bg-gray-800/50 hover:border-red-300 dark:hover:border-red-600'
+                        ? 'border-red-500 bg-red-50 shadow-lg'
+                        : 'border-gray-200 bg-white hover:border-red-300 hover:bg-red-50'
                     }`}
                   >
                     <div className="text-center">
                       <div className={`w-12 h-12 mx-auto mb-3 rounded-xl flex items-center justify-center ${
                         updateData.status === 'LOSS'
                           ? 'bg-red-500 text-white'
-                          : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                          : 'bg-gray-200 text-gray-600'
                       }`}>
                         📉
                       </div>
                       <p className={`font-bold ${
                         updateData.status === 'LOSS'
-                          ? 'text-red-700 dark:text-red-300'
-                          : 'text-gray-700 dark:text-gray-300'
+                          ? 'text-red-700'
+                          : 'text-gray-700'
                       }`}>
                         Loss
                       </p>
@@ -231,44 +231,44 @@ export default function UpdateTradeModal({
               {/* Profit/Loss Input - Only show when WIN or LOSS is selected */}
               {(updateData.status === 'WIN' || updateData.status === 'LOSS') && (
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">
                     <span className="flex items-center">
                       <svg className="w-4 h-4 mr-2 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
                       </svg>
                       {updateData.status === 'WIN' ? 'Profit Amount ($)' : 'Loss Amount ($)'}
-                      <span className="ml-2 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full">
+                      <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
                         Auto-calculated
                       </span>
                     </span>
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <span className="text-gray-500 dark:text-gray-400 text-lg">$</span>
+                      <span className="text-gray-500 text-lg">$</span>
                     </div>
                     <input
                       type="number"
                       step="0.01"
                       value={updateData.profitDollars}
                       readOnly
-                      className={`w-full pl-8 pr-4 py-4 border border-gray-200 dark:border-gray-600 rounded-2xl dark:text-white text-lg transition-all duration-200 ${
+                      className={`w-full pl-8 pr-4 py-4 border rounded-xl text-lg transition-all duration-200 cursor-not-allowed ${
                         updateData.status === 'WIN'
-                          ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700 text-green-800 dark:text-green-200'
-                          : 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700 text-red-800 dark:text-red-200'
-                      } cursor-not-allowed`}
+                          ? 'bg-green-50 border-green-300 text-green-800'
+                          : 'bg-red-50 border-red-300 text-red-800'
+                      }`}
                       placeholder="0.00"
                     />
                   </div>
-                  <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-700">
+                  <div className="mt-3 p-4 bg-blue-50 rounded-xl border border-blue-200">
                     <div className="flex items-start space-x-2">
-                      <svg className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       <div className="text-sm">
-                        <p className="text-blue-800 dark:text-blue-200 font-medium mb-1">
+                        <p className="text-blue-800 font-medium mb-1">
                           {updateData.status === 'WIN' ? 'Profit Auto-Calculated' : 'Loss Auto-Calculated'}
                         </p>
-                        <p className="text-blue-700 dark:text-blue-300 text-xs">
+                        <p className="text-blue-700 text-xs">
                           {updateData.status === 'WIN'
                             ? `Using potential profit of $${(trade.profitDollars || 0).toFixed(2)} from original trade calculation. This amount will be added to your account balance.`
                             : `Using potential loss of $${(trade.lossDollars || 0).toFixed(2)} from original trade calculation. This amount will be subtracted from your account balance.`
@@ -282,28 +282,28 @@ export default function UpdateTradeModal({
 
               {/* Notes Update */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
                   Trade Notes & Analysis
                 </label>
                 <textarea
                   value={updateData.notes}
                   onChange={(e) => setUpdateData(prev => ({ ...prev, notes: e.target.value }))}
-                  rows={8}
-                  className="w-full px-4 py-4 bg-white/70 dark:bg-gray-700/70 border border-gray-200 dark:border-gray-600 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 dark:text-white text-lg transition-all duration-200 resize-none"
+                  rows={6}
+                  className="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 focus:bg-white text-gray-900 transition-all duration-200 resize-none"
                   placeholder="Update your trade analysis, add closing notes, lessons learned..."
                 />
               </div>
 
               {/* Tags Update */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
                   Tags (comma separated)
                 </label>
                 <input
                   type="text"
                   value={updateData.tags}
                   onChange={(e) => setUpdateData(prev => ({ ...prev, tags: e.target.value }))}
-                  className="w-full px-4 py-4 bg-white/70 dark:bg-gray-700/70 border border-gray-200 dark:border-gray-600 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 dark:text-white text-lg transition-all duration-200"
+                  className="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 focus:bg-white text-gray-900 transition-all duration-200"
                   placeholder="closed, profitable, lesson-learned, breakout"
                 />
               </div>
@@ -312,7 +312,7 @@ export default function UpdateTradeModal({
             {/* Right Column - Closing Images Upload */}
             <div className="space-y-6">
               <div>
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                   <svg className="w-5 h-5 mr-2 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
@@ -331,7 +331,7 @@ export default function UpdateTradeModal({
                   }
                 }}
                 onDragOver={(e) => e.preventDefault()}
-                className="border-2 border-dashed border-emerald-300 dark:border-emerald-700 rounded-2xl p-8 text-center hover:border-emerald-500 dark:hover:border-emerald-500 transition-colors duration-200 bg-emerald-50/50 dark:bg-emerald-900/10"
+                className="border-2 border-dashed border-emerald-300 rounded-xl p-8 text-center hover:border-emerald-500 transition-colors duration-200 bg-emerald-50"
               >
                 <div className="flex flex-col items-center space-y-4">
                   <div className="w-12 h-12 bg-emerald-500/10 rounded-full flex items-center justify-center">
@@ -404,17 +404,17 @@ export default function UpdateTradeModal({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex space-x-4 mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex space-x-4 mt-8 pt-6 border-t border-gray-200">
             <button
               onClick={onClose}
-              className="flex-1 px-6 py-4 bg-gray-500 hover:bg-gray-600 text-white rounded-2xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl"
+              className="flex-1 px-6 py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-all duration-200 border border-gray-200"
             >
               Cancel
             </button>
             <button
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="flex-1 px-6 py-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-2xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl disabled:cursor-not-allowed"
+              className="flex-1 px-6 py-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
                 <div className="flex items-center justify-center space-x-2">

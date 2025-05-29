@@ -25,40 +25,163 @@ const tradingPairs: TradingPair[] = [
   { symbol: 'USD/CAD', name: 'US Dollar / Canadian Dollar', category: 'forex', baseAsset: 'USD', quoteAsset: 'CAD' },
   { symbol: 'USD/CHF', name: 'US Dollar / Swiss Franc', category: 'forex', baseAsset: 'USD', quoteAsset: 'CHF' },
   { symbol: 'NZD/USD', name: 'New Zealand Dollar / US Dollar', category: 'forex', baseAsset: 'NZD', quoteAsset: 'USD' },
+  // Cross Currency Pairs
   { symbol: 'EUR/GBP', name: 'Euro / British Pound', category: 'forex', baseAsset: 'EUR', quoteAsset: 'GBP' },
   { symbol: 'EUR/JPY', name: 'Euro / Japanese Yen', category: 'forex', baseAsset: 'EUR', quoteAsset: 'JPY' },
+  { symbol: 'EUR/CHF', name: 'Euro / Swiss Franc', category: 'forex', baseAsset: 'EUR', quoteAsset: 'CHF' },
+  { symbol: 'EUR/AUD', name: 'Euro / Australian Dollar', category: 'forex', baseAsset: 'EUR', quoteAsset: 'AUD' },
+  { symbol: 'EUR/CAD', name: 'Euro / Canadian Dollar', category: 'forex', baseAsset: 'EUR', quoteAsset: 'CAD' },
+  { symbol: 'EUR/NZD', name: 'Euro / New Zealand Dollar', category: 'forex', baseAsset: 'EUR', quoteAsset: 'NZD' },
   { symbol: 'GBP/JPY', name: 'British Pound / Japanese Yen', category: 'forex', baseAsset: 'GBP', quoteAsset: 'JPY' },
+  { symbol: 'GBP/CHF', name: 'British Pound / Swiss Franc', category: 'forex', baseAsset: 'GBP', quoteAsset: 'CHF' },
+  { symbol: 'GBP/AUD', name: 'British Pound / Australian Dollar', category: 'forex', baseAsset: 'GBP', quoteAsset: 'AUD' },
+  { symbol: 'GBP/CAD', name: 'British Pound / Canadian Dollar', category: 'forex', baseAsset: 'GBP', quoteAsset: 'CAD' },
+  { symbol: 'GBP/NZD', name: 'British Pound / New Zealand Dollar', category: 'forex', baseAsset: 'GBP', quoteAsset: 'NZD' },
+  { symbol: 'AUD/JPY', name: 'Australian Dollar / Japanese Yen', category: 'forex', baseAsset: 'AUD', quoteAsset: 'JPY' },
+  { symbol: 'AUD/CHF', name: 'Australian Dollar / Swiss Franc', category: 'forex', baseAsset: 'AUD', quoteAsset: 'CHF' },
+  { symbol: 'AUD/CAD', name: 'Australian Dollar / Canadian Dollar', category: 'forex', baseAsset: 'AUD', quoteAsset: 'CAD' },
+  { symbol: 'AUD/NZD', name: 'Australian Dollar / New Zealand Dollar', category: 'forex', baseAsset: 'AUD', quoteAsset: 'NZD' },
+  { symbol: 'CAD/JPY', name: 'Canadian Dollar / Japanese Yen', category: 'forex', baseAsset: 'CAD', quoteAsset: 'JPY' },
+  { symbol: 'CAD/CHF', name: 'Canadian Dollar / Swiss Franc', category: 'forex', baseAsset: 'CAD', quoteAsset: 'CHF' },
+  { symbol: 'CHF/JPY', name: 'Swiss Franc / Japanese Yen', category: 'forex', baseAsset: 'CHF', quoteAsset: 'JPY' },
+  { symbol: 'NZD/JPY', name: 'New Zealand Dollar / Japanese Yen', category: 'forex', baseAsset: 'NZD', quoteAsset: 'JPY' },
+  { symbol: 'NZD/CHF', name: 'New Zealand Dollar / Swiss Franc', category: 'forex', baseAsset: 'NZD', quoteAsset: 'CHF' },
+  { symbol: 'NZD/CAD', name: 'New Zealand Dollar / Canadian Dollar', category: 'forex', baseAsset: 'NZD', quoteAsset: 'CAD' },
+
+  // Exotic Forex Pairs
+  { symbol: 'USD/SEK', name: 'US Dollar / Swedish Krona', category: 'forex', baseAsset: 'USD', quoteAsset: 'SEK' },
+  { symbol: 'USD/NOK', name: 'US Dollar / Norwegian Krone', category: 'forex', baseAsset: 'USD', quoteAsset: 'NOK' },
+  { symbol: 'USD/DKK', name: 'US Dollar / Danish Krone', category: 'forex', baseAsset: 'USD', quoteAsset: 'DKK' },
+  { symbol: 'USD/PLN', name: 'US Dollar / Polish Zloty', category: 'forex', baseAsset: 'USD', quoteAsset: 'PLN' },
+  { symbol: 'USD/CZK', name: 'US Dollar / Czech Koruna', category: 'forex', baseAsset: 'USD', quoteAsset: 'CZK' },
+  { symbol: 'USD/HUF', name: 'US Dollar / Hungarian Forint', category: 'forex', baseAsset: 'USD', quoteAsset: 'HUF' },
+  { symbol: 'USD/TRY', name: 'US Dollar / Turkish Lira', category: 'forex', baseAsset: 'USD', quoteAsset: 'TRY' },
+  { symbol: 'USD/ZAR', name: 'US Dollar / South African Rand', category: 'forex', baseAsset: 'USD', quoteAsset: 'ZAR' },
+  { symbol: 'USD/MXN', name: 'US Dollar / Mexican Peso', category: 'forex', baseAsset: 'USD', quoteAsset: 'MXN' },
+  { symbol: 'USD/SGD', name: 'US Dollar / Singapore Dollar', category: 'forex', baseAsset: 'USD', quoteAsset: 'SGD' },
+  { symbol: 'USD/HKD', name: 'US Dollar / Hong Kong Dollar', category: 'forex', baseAsset: 'USD', quoteAsset: 'HKD' },
+  { symbol: 'EUR/SEK', name: 'Euro / Swedish Krona', category: 'forex', baseAsset: 'EUR', quoteAsset: 'SEK' },
+  { symbol: 'EUR/NOK', name: 'Euro / Norwegian Krone', category: 'forex', baseAsset: 'EUR', quoteAsset: 'NOK' },
+  { symbol: 'EUR/PLN', name: 'Euro / Polish Zloty', category: 'forex', baseAsset: 'EUR', quoteAsset: 'PLN' },
+  { symbol: 'EUR/CZK', name: 'Euro / Czech Koruna', category: 'forex', baseAsset: 'EUR', quoteAsset: 'CZK' },
+  { symbol: 'EUR/HUF', name: 'Euro / Hungarian Forint', category: 'forex', baseAsset: 'EUR', quoteAsset: 'HUF' },
+  { symbol: 'EUR/TRY', name: 'Euro / Turkish Lira', category: 'forex', baseAsset: 'EUR', quoteAsset: 'TRY' },
+  { symbol: 'GBP/SEK', name: 'British Pound / Swedish Krona', category: 'forex', baseAsset: 'GBP', quoteAsset: 'SEK' },
+  { symbol: 'GBP/NOK', name: 'British Pound / Norwegian Krone', category: 'forex', baseAsset: 'GBP', quoteAsset: 'NOK' },
+  { symbol: 'GBP/PLN', name: 'British Pound / Polish Zloty', category: 'forex', baseAsset: 'GBP', quoteAsset: 'PLN' },
 
   // Major Cryptocurrencies
   { symbol: 'BTC/USD', name: 'Bitcoin / US Dollar', category: 'crypto', baseAsset: 'BTC', quoteAsset: 'USD', popular: true },
   { symbol: 'ETH/USD', name: 'Ethereum / US Dollar', category: 'crypto', baseAsset: 'ETH', quoteAsset: 'USD', popular: true },
-  { symbol: 'BNB/USD', name: 'Binance Coin / US Dollar', category: 'crypto', baseAsset: 'BNB', quoteAsset: 'USD' },
-  { symbol: 'ADA/USD', name: 'Cardano / US Dollar', category: 'crypto', baseAsset: 'ADA', quoteAsset: 'USD' },
-  { symbol: 'SOL/USD', name: 'Solana / US Dollar', category: 'crypto', baseAsset: 'SOL', quoteAsset: 'USD' },
+  { symbol: 'BNB/USD', name: 'Binance Coin / US Dollar', category: 'crypto', baseAsset: 'BNB', quoteAsset: 'USD', popular: true },
+  { symbol: 'ADA/USD', name: 'Cardano / US Dollar', category: 'crypto', baseAsset: 'ADA', quoteAsset: 'USD', popular: true },
+  { symbol: 'SOL/USD', name: 'Solana / US Dollar', category: 'crypto', baseAsset: 'SOL', quoteAsset: 'USD', popular: true },
+  { symbol: 'XRP/USD', name: 'Ripple / US Dollar', category: 'crypto', baseAsset: 'XRP', quoteAsset: 'USD', popular: true },
   { symbol: 'DOT/USD', name: 'Polkadot / US Dollar', category: 'crypto', baseAsset: 'DOT', quoteAsset: 'USD' },
+  { symbol: 'AVAX/USD', name: 'Avalanche / US Dollar', category: 'crypto', baseAsset: 'AVAX', quoteAsset: 'USD' },
+  { symbol: 'MATIC/USD', name: 'Polygon / US Dollar', category: 'crypto', baseAsset: 'MATIC', quoteAsset: 'USD' },
+  { symbol: 'LINK/USD', name: 'Chainlink / US Dollar', category: 'crypto', baseAsset: 'LINK', quoteAsset: 'USD' },
+  { symbol: 'UNI/USD', name: 'Uniswap / US Dollar', category: 'crypto', baseAsset: 'UNI', quoteAsset: 'USD' },
+  { symbol: 'LTC/USD', name: 'Litecoin / US Dollar', category: 'crypto', baseAsset: 'LTC', quoteAsset: 'USD' },
+  { symbol: 'BCH/USD', name: 'Bitcoin Cash / US Dollar', category: 'crypto', baseAsset: 'BCH', quoteAsset: 'USD' },
+  { symbol: 'DOGE/USD', name: 'Dogecoin / US Dollar', category: 'crypto', baseAsset: 'DOGE', quoteAsset: 'USD' },
+  { symbol: 'SHIB/USD', name: 'Shiba Inu / US Dollar', category: 'crypto', baseAsset: 'SHIB', quoteAsset: 'USD' },
+  { symbol: 'ATOM/USD', name: 'Cosmos / US Dollar', category: 'crypto', baseAsset: 'ATOM', quoteAsset: 'USD' },
+  { symbol: 'ALGO/USD', name: 'Algorand / US Dollar', category: 'crypto', baseAsset: 'ALGO', quoteAsset: 'USD' },
+  { symbol: 'VET/USD', name: 'VeChain / US Dollar', category: 'crypto', baseAsset: 'VET', quoteAsset: 'USD' },
+  { symbol: 'FTM/USD', name: 'Fantom / US Dollar', category: 'crypto', baseAsset: 'FTM', quoteAsset: 'USD' },
+  { symbol: 'NEAR/USD', name: 'NEAR Protocol / US Dollar', category: 'crypto', baseAsset: 'NEAR', quoteAsset: 'USD' },
+  { symbol: 'ICP/USD', name: 'Internet Computer / US Dollar', category: 'crypto', baseAsset: 'ICP', quoteAsset: 'USD' },
+  { symbol: 'FLOW/USD', name: 'Flow / US Dollar', category: 'crypto', baseAsset: 'FLOW', quoteAsset: 'USD' },
+  { symbol: 'SAND/USD', name: 'The Sandbox / US Dollar', category: 'crypto', baseAsset: 'SAND', quoteAsset: 'USD' },
+  { symbol: 'MANA/USD', name: 'Decentraland / US Dollar', category: 'crypto', baseAsset: 'MANA', quoteAsset: 'USD' },
+  { symbol: 'CRO/USD', name: 'Cronos / US Dollar', category: 'crypto', baseAsset: 'CRO', quoteAsset: 'USD' },
+  { symbol: 'FIL/USD', name: 'Filecoin / US Dollar', category: 'crypto', baseAsset: 'FIL', quoteAsset: 'USD' },
+  { symbol: 'AAVE/USD', name: 'Aave / US Dollar', category: 'crypto', baseAsset: 'AAVE', quoteAsset: 'USD' },
+  { symbol: 'COMP/USD', name: 'Compound / US Dollar', category: 'crypto', baseAsset: 'COMP', quoteAsset: 'USD' },
+  { symbol: 'MKR/USD', name: 'Maker / US Dollar', category: 'crypto', baseAsset: 'MKR', quoteAsset: 'USD' },
+  { symbol: 'SUSHI/USD', name: 'SushiSwap / US Dollar', category: 'crypto', baseAsset: 'SUSHI', quoteAsset: 'USD' },
 
   // Popular US Stocks
   { symbol: 'AAPL', name: 'Apple Inc.', category: 'stocks', baseAsset: 'AAPL', quoteAsset: 'USD', popular: true },
   { symbol: 'TSLA', name: 'Tesla Inc.', category: 'stocks', baseAsset: 'TSLA', quoteAsset: 'USD', popular: true },
   { symbol: 'GOOGL', name: 'Alphabet Inc.', category: 'stocks', baseAsset: 'GOOGL', quoteAsset: 'USD', popular: true },
   { symbol: 'MSFT', name: 'Microsoft Corporation', category: 'stocks', baseAsset: 'MSFT', quoteAsset: 'USD', popular: true },
-  { symbol: 'AMZN', name: 'Amazon.com Inc.', category: 'stocks', baseAsset: 'AMZN', quoteAsset: 'USD' },
-  { symbol: 'META', name: 'Meta Platforms Inc.', category: 'stocks', baseAsset: 'META', quoteAsset: 'USD' },
-  { symbol: 'NVDA', name: 'NVIDIA Corporation', category: 'stocks', baseAsset: 'NVDA', quoteAsset: 'USD' },
+  { symbol: 'AMZN', name: 'Amazon.com Inc.', category: 'stocks', baseAsset: 'AMZN', quoteAsset: 'USD', popular: true },
+  { symbol: 'META', name: 'Meta Platforms Inc.', category: 'stocks', baseAsset: 'META', quoteAsset: 'USD', popular: true },
+  { symbol: 'NVDA', name: 'NVIDIA Corporation', category: 'stocks', baseAsset: 'NVDA', quoteAsset: 'USD', popular: true },
   { symbol: 'NFLX', name: 'Netflix Inc.', category: 'stocks', baseAsset: 'NFLX', quoteAsset: 'USD' },
+  { symbol: 'AMD', name: 'Advanced Micro Devices', category: 'stocks', baseAsset: 'AMD', quoteAsset: 'USD' },
+  { symbol: 'INTC', name: 'Intel Corporation', category: 'stocks', baseAsset: 'INTC', quoteAsset: 'USD' },
+  { symbol: 'CRM', name: 'Salesforce Inc.', category: 'stocks', baseAsset: 'CRM', quoteAsset: 'USD' },
+  { symbol: 'ORCL', name: 'Oracle Corporation', category: 'stocks', baseAsset: 'ORCL', quoteAsset: 'USD' },
+  { symbol: 'ADBE', name: 'Adobe Inc.', category: 'stocks', baseAsset: 'ADBE', quoteAsset: 'USD' },
+  { symbol: 'PYPL', name: 'PayPal Holdings Inc.', category: 'stocks', baseAsset: 'PYPL', quoteAsset: 'USD' },
+  { symbol: 'UBER', name: 'Uber Technologies Inc.', category: 'stocks', baseAsset: 'UBER', quoteAsset: 'USD' },
+  { symbol: 'LYFT', name: 'Lyft Inc.', category: 'stocks', baseAsset: 'LYFT', quoteAsset: 'USD' },
+  { symbol: 'SPOT', name: 'Spotify Technology SA', category: 'stocks', baseAsset: 'SPOT', quoteAsset: 'USD' },
+  { symbol: 'ZOOM', name: 'Zoom Video Communications', category: 'stocks', baseAsset: 'ZOOM', quoteAsset: 'USD' },
+  { symbol: 'SHOP', name: 'Shopify Inc.', category: 'stocks', baseAsset: 'SHOP', quoteAsset: 'USD' },
+  { symbol: 'SQ', name: 'Block Inc.', category: 'stocks', baseAsset: 'SQ', quoteAsset: 'USD' },
+  { symbol: 'TWTR', name: 'Twitter Inc.', category: 'stocks', baseAsset: 'TWTR', quoteAsset: 'USD' },
+  { symbol: 'SNAP', name: 'Snap Inc.', category: 'stocks', baseAsset: 'SNAP', quoteAsset: 'USD' },
+  { symbol: 'PINS', name: 'Pinterest Inc.', category: 'stocks', baseAsset: 'PINS', quoteAsset: 'USD' },
+  { symbol: 'ROKU', name: 'Roku Inc.', category: 'stocks', baseAsset: 'ROKU', quoteAsset: 'USD' },
+  { symbol: 'COIN', name: 'Coinbase Global Inc.', category: 'stocks', baseAsset: 'COIN', quoteAsset: 'USD' },
+  { symbol: 'HOOD', name: 'Robinhood Markets Inc.', category: 'stocks', baseAsset: 'HOOD', quoteAsset: 'USD' },
+  { symbol: 'PLTR', name: 'Palantir Technologies', category: 'stocks', baseAsset: 'PLTR', quoteAsset: 'USD' },
+  { symbol: 'RBLX', name: 'Roblox Corporation', category: 'stocks', baseAsset: 'RBLX', quoteAsset: 'USD' },
+  { symbol: 'UNITY', name: 'Unity Software Inc.', category: 'stocks', baseAsset: 'UNITY', quoteAsset: 'USD' },
+  { symbol: 'SNOW', name: 'Snowflake Inc.', category: 'stocks', baseAsset: 'SNOW', quoteAsset: 'USD' },
+  { symbol: 'CRWD', name: 'CrowdStrike Holdings', category: 'stocks', baseAsset: 'CRWD', quoteAsset: 'USD' },
+  { symbol: 'ZM', name: 'Zoom Video Communications', category: 'stocks', baseAsset: 'ZM', quoteAsset: 'USD' },
+  { symbol: 'DOCU', name: 'DocuSign Inc.', category: 'stocks', baseAsset: 'DOCU', quoteAsset: 'USD' },
+  { symbol: 'OKTA', name: 'Okta Inc.', category: 'stocks', baseAsset: 'OKTA', quoteAsset: 'USD' },
+  { symbol: 'TWLO', name: 'Twilio Inc.', category: 'stocks', baseAsset: 'TWLO', quoteAsset: 'USD' },
+  { symbol: 'DDOG', name: 'Datadog Inc.', category: 'stocks', baseAsset: 'DDOG', quoteAsset: 'USD' },
+  { symbol: 'MDB', name: 'MongoDB Inc.', category: 'stocks', baseAsset: 'MDB', quoteAsset: 'USD' },
+  { symbol: 'SPLK', name: 'Splunk Inc.', category: 'stocks', baseAsset: 'SPLK', quoteAsset: 'USD' },
+  { symbol: 'WDAY', name: 'Workday Inc.', category: 'stocks', baseAsset: 'WDAY', quoteAsset: 'USD' },
+  { symbol: 'NOW', name: 'ServiceNow Inc.', category: 'stocks', baseAsset: 'NOW', quoteAsset: 'USD' },
+  { symbol: 'TEAM', name: 'Atlassian Corporation', category: 'stocks', baseAsset: 'TEAM', quoteAsset: 'USD' },
 
   // Commodities
   { symbol: 'XAU/USD', name: 'Gold / US Dollar', category: 'commodities', baseAsset: 'XAU', quoteAsset: 'USD', popular: true },
-  { symbol: 'XAG/USD', name: 'Silver / US Dollar', category: 'commodities', baseAsset: 'XAG', quoteAsset: 'USD' },
-  { symbol: 'OIL/USD', name: 'Crude Oil / US Dollar', category: 'commodities', baseAsset: 'OIL', quoteAsset: 'USD' },
+  { symbol: 'XAG/USD', name: 'Silver / US Dollar', category: 'commodities', baseAsset: 'XAG', quoteAsset: 'USD', popular: true },
+  { symbol: 'OIL/USD', name: 'Crude Oil / US Dollar', category: 'commodities', baseAsset: 'OIL', quoteAsset: 'USD', popular: true },
   { symbol: 'GAS/USD', name: 'Natural Gas / US Dollar', category: 'commodities', baseAsset: 'GAS', quoteAsset: 'USD' },
+  { symbol: 'XPT/USD', name: 'Platinum / US Dollar', category: 'commodities', baseAsset: 'XPT', quoteAsset: 'USD' },
+  { symbol: 'XPD/USD', name: 'Palladium / US Dollar', category: 'commodities', baseAsset: 'XPD', quoteAsset: 'USD' },
+  { symbol: 'COPPER/USD', name: 'Copper / US Dollar', category: 'commodities', baseAsset: 'COPPER', quoteAsset: 'USD' },
+  { symbol: 'WHEAT/USD', name: 'Wheat / US Dollar', category: 'commodities', baseAsset: 'WHEAT', quoteAsset: 'USD' },
+  { symbol: 'CORN/USD', name: 'Corn / US Dollar', category: 'commodities', baseAsset: 'CORN', quoteAsset: 'USD' },
+  { symbol: 'SOYBEAN/USD', name: 'Soybean / US Dollar', category: 'commodities', baseAsset: 'SOYBEAN', quoteAsset: 'USD' },
+  { symbol: 'SUGAR/USD', name: 'Sugar / US Dollar', category: 'commodities', baseAsset: 'SUGAR', quoteAsset: 'USD' },
+  { symbol: 'COFFEE/USD', name: 'Coffee / US Dollar', category: 'commodities', baseAsset: 'COFFEE', quoteAsset: 'USD' },
+  { symbol: 'COCOA/USD', name: 'Cocoa / US Dollar', category: 'commodities', baseAsset: 'COCOA', quoteAsset: 'USD' },
+  { symbol: 'COTTON/USD', name: 'Cotton / US Dollar', category: 'commodities', baseAsset: 'COTTON', quoteAsset: 'USD' },
 
   // Major Indices
   { symbol: 'SPX500', name: 'S&P 500 Index', category: 'indices', baseAsset: 'SPX500', quoteAsset: 'USD', popular: true },
-  { symbol: 'NAS100', name: 'NASDAQ 100 Index', category: 'indices', baseAsset: 'NAS100', quoteAsset: 'USD' },
-  { symbol: 'US30', name: 'Dow Jones Industrial Average', category: 'indices', baseAsset: 'US30', quoteAsset: 'USD' },
+  { symbol: 'NAS100', name: 'NASDAQ 100 Index', category: 'indices', baseAsset: 'NAS100', quoteAsset: 'USD', popular: true },
+  { symbol: 'US30', name: 'Dow Jones Industrial Average', category: 'indices', baseAsset: 'US30', quoteAsset: 'USD', popular: true },
   { symbol: 'UK100', name: 'FTSE 100 Index', category: 'indices', baseAsset: 'UK100', quoteAsset: 'GBP' },
   { symbol: 'GER40', name: 'DAX 40 Index', category: 'indices', baseAsset: 'GER40', quoteAsset: 'EUR' },
+  { symbol: 'FRA40', name: 'CAC 40 Index', category: 'indices', baseAsset: 'FRA40', quoteAsset: 'EUR' },
+  { symbol: 'ESP35', name: 'IBEX 35 Index', category: 'indices', baseAsset: 'ESP35', quoteAsset: 'EUR' },
+  { symbol: 'ITA40', name: 'FTSE MIB Index', category: 'indices', baseAsset: 'ITA40', quoteAsset: 'EUR' },
+  { symbol: 'JPN225', name: 'Nikkei 225 Index', category: 'indices', baseAsset: 'JPN225', quoteAsset: 'JPY' },
+  { symbol: 'AUS200', name: 'ASX 200 Index', category: 'indices', baseAsset: 'AUS200', quoteAsset: 'AUD' },
+  { symbol: 'HK50', name: 'Hang Seng Index', category: 'indices', baseAsset: 'HK50', quoteAsset: 'HKD' },
+  { symbol: 'CHN50', name: 'China A50 Index', category: 'indices', baseAsset: 'CHN50', quoteAsset: 'CNH' },
+  { symbol: 'IND50', name: 'Nifty 50 Index', category: 'indices', baseAsset: 'IND50', quoteAsset: 'INR' },
+  { symbol: 'SWI20', name: 'SMI 20 Index', category: 'indices', baseAsset: 'SWI20', quoteAsset: 'CHF' },
+  { symbol: 'NLD25', name: 'AEX 25 Index', category: 'indices', baseAsset: 'NLD25', quoteAsset: 'EUR' },
+  { symbol: 'SWE30', name: 'OMX Stockholm 30', category: 'indices', baseAsset: 'SWE30', quoteAsset: 'SEK' },
+  { symbol: 'NOR25', name: 'OBX 25 Index', category: 'indices', baseAsset: 'NOR25', quoteAsset: 'NOK' },
+  { symbol: 'RUS50', name: 'RTS Index', category: 'indices', baseAsset: 'RUS50', quoteAsset: 'RUB' },
+  { symbol: 'BRA60', name: 'Bovespa Index', category: 'indices', baseAsset: 'BRA60', quoteAsset: 'BRL' },
+  { symbol: 'MEX35', name: 'IPC 35 Index', category: 'indices', baseAsset: 'MEX35', quoteAsset: 'MXN' },
 ];
 
 const categoryColors = {
@@ -142,7 +265,7 @@ export default function TradingPairSelector({ selectedPair, onPairSelect }: Trad
 
   return (
     <div className="relative" ref={dropdownRef}>
-      <label className="block text-sm font-bold text-white/70 mb-6 uppercase tracking-wider flex items-center">
+      <label className="block text-sm font-bold text-gray-700 mb-3 uppercase tracking-wider flex items-center">
         <div className="w-6 h-6 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center mr-3">
           <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
@@ -154,7 +277,7 @@ export default function TradingPairSelector({ selectedPair, onPairSelect }: Trad
       {/* Beautiful Selected Pair Display */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full p-6 bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all duration-300 shadow-2xl hover:shadow-emerald-500/10 hover:bg-white/15 group"
+        className="w-full p-6 bg-white border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all duration-300 shadow-lg hover:shadow-xl hover:border-emerald-300 group"
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-5">
@@ -166,8 +289,8 @@ export default function TradingPairSelector({ selectedPair, onPairSelect }: Trad
                   </div>
                 </div>
                 <div className="text-left">
-                  <p className="text-2xl font-bold text-white group-hover:text-emerald-300 transition-colors duration-300">{selectedPairData.symbol}</p>
-                  <p className="text-sm text-white/60 group-hover:text-white/80 transition-colors duration-300">{selectedPairData.name}</p>
+                  <p className="text-2xl font-bold text-gray-900 group-hover:text-emerald-600 transition-colors duration-300">{selectedPairData.symbol}</p>
+                  <p className="text-sm text-gray-600 group-hover:text-gray-700 transition-colors duration-300">{selectedPairData.name}</p>
                   <div className={`inline-flex items-center px-2 py-1 rounded-lg text-xs font-medium mt-1 ${categoryBgColors[selectedPairData.category]}`}>
                     <span className="capitalize">{selectedPairData.category}</span>
                   </div>
@@ -175,15 +298,15 @@ export default function TradingPairSelector({ selectedPair, onPairSelect }: Trad
               </>
             ) : (
               <>
-                <div className="w-14 h-14 bg-gradient-to-br from-gray-500/50 to-gray-600/50 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform duration-300 border border-white/20">
-                  <svg className="w-7 h-7 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-14 h-14 bg-gradient-to-br from-gray-400 to-gray-500 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform duration-300 border border-gray-300">
+                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                 </div>
                 <div className="text-left">
-                  <p className="text-2xl font-bold text-white group-hover:text-emerald-300 transition-colors duration-300">Select Trading Pair</p>
-                  <p className="text-sm text-white/60 group-hover:text-white/80 transition-colors duration-300">Choose from forex, crypto, stocks & more</p>
-                  <div className="inline-flex items-center px-2 py-1 bg-white/10 border border-white/20 rounded-lg text-xs font-medium mt-1 text-white/60">
+                  <p className="text-2xl font-bold text-gray-900 group-hover:text-emerald-600 transition-colors duration-300">Select Trading Pair</p>
+                  <p className="text-sm text-gray-600 group-hover:text-gray-700 transition-colors duration-300">Choose from forex, crypto, stocks & more</p>
+                  <div className="inline-flex items-center px-2 py-1 bg-gray-100 border border-gray-200 rounded-lg text-xs font-medium mt-1 text-gray-600">
                     <span>Click to browse</span>
                   </div>
                 </div>
@@ -191,8 +314,8 @@ export default function TradingPairSelector({ selectedPair, onPairSelect }: Trad
             )}
           </div>
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center border border-white/20">
-              <svg className={`w-4 h-4 text-white/60 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-8 h-8 bg-gray-100 rounded-xl flex items-center justify-center border border-gray-200">
+              <svg className={`w-4 h-4 text-gray-600 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </div>
@@ -202,13 +325,13 @@ export default function TradingPairSelector({ selectedPair, onPairSelect }: Trad
 
       {/* Beautiful Dropdown Panel */}
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-4 bg-white/10 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl z-50 max-h-[500px] overflow-hidden">
+        <div className="absolute top-full left-0 right-0 mt-4 bg-white border border-gray-200 rounded-2xl shadow-2xl z-50 max-h-[500px] overflow-hidden">
           {/* Enhanced Search and Category Filter */}
-          <div className="p-6 border-b border-white/10">
+          <div className="p-6 border-b border-gray-200">
             {/* Search Bar */}
             <div className="relative mb-6">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <svg className="w-5 h-5 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </div>
@@ -217,7 +340,7 @@ export default function TradingPairSelector({ selectedPair, onPairSelect }: Trad
                 placeholder="Search trading pairs..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/20 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 text-white placeholder-white/50 backdrop-blur-xl transition-all duration-300"
+                className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 text-gray-900 placeholder-gray-500 transition-all duration-300"
               />
             </div>
 
@@ -228,7 +351,7 @@ export default function TradingPairSelector({ selectedPair, onPairSelect }: Trad
                 className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 flex items-center space-x-2 ${
                   selectedCategory === 'all'
                     ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/25'
-                    : 'bg-white/10 border border-white/20 text-white/70 hover:bg-white/20 hover:text-white'
+                    : 'bg-gray-100 border border-gray-200 text-gray-700 hover:bg-gray-200 hover:text-gray-900'
                 }`}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -243,10 +366,10 @@ export default function TradingPairSelector({ selectedPair, onPairSelect }: Trad
                   className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 flex items-center space-x-2 ${
                     selectedCategory === category
                       ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/25'
-                      : 'bg-white/10 border border-white/20 text-white/70 hover:bg-white/20 hover:text-white'
+                      : 'bg-gray-100 border border-gray-200 text-gray-700 hover:bg-gray-200 hover:text-gray-900'
                   }`}
                 >
-                  <div className="text-white">
+                  <div className={selectedCategory === category ? 'text-white' : 'text-gray-700'}>
                     {icon}
                   </div>
                   <span className="capitalize">{category}</span>
@@ -256,7 +379,7 @@ export default function TradingPairSelector({ selectedPair, onPairSelect }: Trad
           </div>
 
           {/* Beautiful Pairs List */}
-          <div className="max-h-80 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+          <div className="max-h-80 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
             {popularPairs.length > 0 && (
               <div className="p-6">
                 <div className="flex items-center mb-4">
@@ -265,14 +388,14 @@ export default function TradingPairSelector({ selectedPair, onPairSelect }: Trad
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                     </svg>
                   </div>
-                  <h3 className="text-sm font-bold text-white/80 uppercase tracking-wider">Popular Pairs</h3>
+                  <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Popular Pairs</h3>
                 </div>
                 <div className="space-y-2">
                   {popularPairs.map((pair) => (
                     <button
                       key={pair.symbol}
                       onClick={() => handlePairSelect(pair.symbol)}
-                      className="w-full p-4 flex items-center space-x-4 hover:bg-white/10 rounded-2xl transition-all duration-300 group border border-transparent hover:border-white/20"
+                      className="w-full p-4 flex items-center space-x-4 hover:bg-gray-50 rounded-2xl transition-all duration-300 group border border-transparent hover:border-gray-200"
                     >
                       <div className={`w-12 h-12 bg-gradient-to-br ${categoryColors[pair.category]} rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform duration-300`}>
                         <div className="text-white">
@@ -280,12 +403,12 @@ export default function TradingPairSelector({ selectedPair, onPairSelect }: Trad
                         </div>
                       </div>
                       <div className="flex-1 text-left">
-                        <p className="font-bold text-white text-lg group-hover:text-emerald-300 transition-colors duration-300">{pair.symbol}</p>
-                        <p className="text-sm text-white/60 group-hover:text-white/80 transition-colors duration-300">{pair.name}</p>
+                        <p className="font-bold text-gray-900 text-lg group-hover:text-emerald-600 transition-colors duration-300">{pair.symbol}</p>
+                        <p className="text-sm text-gray-600 group-hover:text-gray-700 transition-colors duration-300">{pair.name}</p>
                       </div>
                       <div className="flex items-center space-x-2">
                         <div className="w-3 h-3 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-full shadow-lg"></div>
-                        <svg className="w-4 h-4 text-white/40 group-hover:text-white/60 transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
                       </div>
@@ -304,7 +427,7 @@ export default function TradingPairSelector({ selectedPair, onPairSelect }: Trad
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                       </svg>
                     </div>
-                    <h3 className="text-sm font-bold text-white/80 uppercase tracking-wider">All Trading Pairs</h3>
+                    <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">All Trading Pairs</h3>
                   </div>
                 )}
                 <div className="space-y-2">
@@ -312,7 +435,7 @@ export default function TradingPairSelector({ selectedPair, onPairSelect }: Trad
                     <button
                       key={pair.symbol}
                       onClick={() => handlePairSelect(pair.symbol)}
-                      className="w-full p-4 flex items-center space-x-4 hover:bg-white/10 rounded-2xl transition-all duration-300 group border border-transparent hover:border-white/20"
+                      className="w-full p-4 flex items-center space-x-4 hover:bg-gray-50 rounded-2xl transition-all duration-300 group border border-transparent hover:border-gray-200"
                     >
                       <div className={`w-12 h-12 bg-gradient-to-br ${categoryColors[pair.category]} rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform duration-300`}>
                         <div className="text-white">
@@ -320,11 +443,11 @@ export default function TradingPairSelector({ selectedPair, onPairSelect }: Trad
                         </div>
                       </div>
                       <div className="flex-1 text-left">
-                        <p className="font-bold text-white text-lg group-hover:text-emerald-300 transition-colors duration-300">{pair.symbol}</p>
-                        <p className="text-sm text-white/60 group-hover:text-white/80 transition-colors duration-300">{pair.name}</p>
+                        <p className="font-bold text-gray-900 text-lg group-hover:text-emerald-600 transition-colors duration-300">{pair.symbol}</p>
+                        <p className="text-sm text-gray-600 group-hover:text-gray-700 transition-colors duration-300">{pair.name}</p>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <svg className="w-4 h-4 text-white/40 group-hover:text-white/60 transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
                       </div>
@@ -336,13 +459,13 @@ export default function TradingPairSelector({ selectedPair, onPairSelect }: Trad
 
             {filteredPairs.length === 0 && (
               <div className="p-12 text-center">
-                <div className="w-20 h-20 bg-white/10 border border-white/20 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                  <svg className="w-10 h-10 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-20 h-20 bg-gray-100 border border-gray-200 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                  <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                 </div>
-                <p className="text-white/60 text-lg font-medium mb-2">No pairs found</p>
-                <p className="text-white/40 text-sm">Try adjusting your search or category filter</p>
+                <p className="text-gray-600 text-lg font-medium mb-2">No pairs found</p>
+                <p className="text-gray-500 text-sm">Try adjusting your search or category filter</p>
               </div>
             )}
           </div>

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, createContext, useContext } from 'react';
+import { usePathname } from 'next/navigation';
 import { useAuth } from './AuthProvider';
 import Header from './Header';
 import Sidebar from './Sidebar';
@@ -9,17 +10,33 @@ interface AppLayoutProps {
   children: React.ReactNode;
 }
 
+interface SidebarContextType {
+  isCollapsed: boolean;
+  setIsCollapsed: (collapsed: boolean) => void;
+}
+
+const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
+
+export const useSidebar = () => {
+  const context = useContext(SidebarContext);
+  if (!context) {
+    throw new Error('useSidebar must be used within AppLayout');
+  }
+  return context;
+};
+
 export default function AppLayout({ children }: AppLayoutProps) {
   const { user } = useAuth();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const pathname = usePathname();
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Handle responsive sidebar
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth < 1024) {
-        setSidebarCollapsed(true);
+        setIsCollapsed(true);
       } else {
-        setSidebarCollapsed(false);
+        setIsCollapsed(false);
       }
     };
 
@@ -32,29 +49,28 @@ export default function AppLayout({ children }: AppLayoutProps) {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-blue-900 dark:to-indigo-900">
-      {user ? (
-        // Logged-in layout with sidebar
-        <div className="flex min-h-screen">
-          <Sidebar />
-          <div className={`flex-1 flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'ml-20' : 'ml-72'}`}>
-            <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b border-gray-200">
-              <Header />
+    <SidebarContext.Provider value={{ isCollapsed, setIsCollapsed }}>
+      <div className="min-h-screen bg-white">
+        {user ? (
+          // Logged-in layout with sidebar
+          <div className="flex min-h-screen bg-gray-50">
+            <Sidebar />
+            <div className="flex-1 flex flex-col min-h-0">
+              <main className="flex-1 bg-gray-50">
+                {children}
+              </main>
             </div>
-            <main className="flex-1 p-4 md:p-6 bg-gray-50 min-h-0">
+          </div>
+        ) : (
+          // Guest layout with full header
+          <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+            <Header />
+            <main>
               {children}
             </main>
           </div>
-        </div>
-      ) : (
-        // Guest layout with full header
-        <div>
-          <Header />
-          <main>
-            {children}
-          </main>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </SidebarContext.Provider>
   );
 }

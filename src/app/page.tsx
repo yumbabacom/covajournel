@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import TradingCalculator from './components/TradingCalculator';
-import Header from './components/Header';
 import SaveTradeModal from './components/SaveTradeModal';
 import { useAuth } from './components/AuthProvider';
 
@@ -42,8 +41,6 @@ export default function Home() {
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-purple-400/20 to-pink-600/20 rounded-full blur-3xl"></div>
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-cyan-400/10 to-blue-600/10 rounded-full blur-3xl"></div>
       </div>
-
-      <Header />
 
       <div className="relative z-10 py-8">
         <div className="container mx-auto px-4">

@@ -56,11 +56,27 @@ export function AccountProvider({ children }: AccountProviderProps) {
     }
   }, [user]);
 
-  // Auto-select default account when accounts are loaded
+  // Auto-select account when accounts are loaded
   useEffect(() => {
     if (accounts.length > 0 && !selectedAccount) {
-      const defaultAccount = accounts.find(acc => acc.isDefault) || accounts[0];
-      setSelectedAccount(defaultAccount);
+      // First try to restore from localStorage
+      const savedAccountId = localStorage.getItem('selectedAccountId');
+      let accountToSelect = null;
+
+      if (savedAccountId) {
+        accountToSelect = accounts.find(acc => acc.id === savedAccountId);
+      }
+
+      // If no saved account or saved account not found, use default or first account
+      if (!accountToSelect) {
+        accountToSelect = accounts.find(acc => acc.isDefault) || accounts[0];
+      }
+
+      if (accountToSelect) {
+        setSelectedAccount(accountToSelect);
+        // Update localStorage with the selected account
+        localStorage.setItem('selectedAccountId', accountToSelect.id);
+      }
     }
   }, [accounts, selectedAccount]);
 
@@ -116,11 +132,15 @@ export function AccountProvider({ children }: AccountProviderProps) {
   };
 
   const selectAccount = (accountId: string) => {
+    console.log('Selecting account:', accountId);
     const account = accounts.find(acc => acc.id === accountId);
     if (account) {
+      console.log('Account found:', account);
       setSelectedAccount(account);
       // Store selected account in localStorage for persistence
       localStorage.setItem('selectedAccountId', accountId);
+    } else {
+      console.log('Account not found for ID:', accountId);
     }
   };
 

@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../components/AuthProvider';
 import { useRouter } from 'next/navigation';
-import Header from '../components/Header';
 import UserDetailModal from '../components/UserDetailModal';
 import AllTradesTab from '../components/AllTradesTab';
 import AnalyticsTab from '../components/AnalyticsTab';

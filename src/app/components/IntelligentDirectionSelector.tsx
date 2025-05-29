@@ -45,11 +45,11 @@ export default function IntelligentDirectionSelector({
       detectedDirection = 'LONG';
       const profitDistance = exit - entry;
       const lossDistance = entry - stop;
-      
+
       // Calculate confidence based on risk-reward ratio and price relationships
       const riskReward = profitDistance / lossDistance;
       confidenceLevel = Math.min(95, 60 + (riskReward * 10));
-      
+
       analysisText = `Long position detected: Entry ${entry} → Target ${exit} (${((exit - entry) / entry * 100).toFixed(2)}% gain), Stop ${stop} (${((entry - stop) / entry * 100).toFixed(2)}% loss). R:R = 1:${riskReward.toFixed(2)}`;
     }
     // Short trade analysis
@@ -57,11 +57,11 @@ export default function IntelligentDirectionSelector({
       detectedDirection = 'SHORT';
       const profitDistance = entry - exit;
       const lossDistance = stop - entry;
-      
+
       // Calculate confidence based on risk-reward ratio and price relationships
       const riskReward = profitDistance / lossDistance;
       confidenceLevel = Math.min(95, 60 + (riskReward * 10));
-      
+
       analysisText = `Short position detected: Entry ${entry} → Target ${exit} (${((entry - exit) / entry * 100).toFixed(2)}% gain), Stop ${stop} (${((stop - entry) / entry * 100).toFixed(2)}% loss). R:R = 1:${riskReward.toFixed(2)}`;
     }
     // Ambiguous or invalid setup
@@ -92,20 +92,20 @@ export default function IntelligentDirectionSelector({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+        <label className="block text-sm font-bold text-gray-700 uppercase tracking-wider">
           Trade Direction
         </label>
         {autoDetected && (
-          <div className="flex items-center space-x-2 px-3 py-1 bg-emerald-100 dark:bg-emerald-900/30 rounded-full">
+          <div className="flex items-center space-x-2 px-3 py-1 bg-emerald-100 rounded-full">
             <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-            <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">Auto-Detected</span>
+            <span className="text-xs font-bold text-emerald-700">Auto-Detected</span>
           </div>
         )}
       </div>
 
       {/* AI Analysis Panel */}
       {analysis && (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl p-6 border border-blue-200/50 dark:border-blue-700/30">
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-200">
           <div className="flex items-start space-x-4">
             <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-2xl flex items-center justify-center shadow-lg">
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -114,11 +114,11 @@ export default function IntelligentDirectionSelector({
             </div>
             <div className="flex-1">
               <div className="flex items-center space-x-3 mb-3">
-                <h3 className="text-lg font-bold text-blue-900 dark:text-blue-100">AI Trade Analysis</h3>
+                <h3 className="text-lg font-bold text-blue-900">AI Trade Analysis</h3>
                 {confidence > 0 && (
                   <div className="flex items-center space-x-2">
-                    <div className="w-20 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                      <div 
+                    <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div
                         className={`h-full transition-all duration-1000 ease-out ${
                           confidence >= 80 ? 'bg-gradient-to-r from-green-500 to-emerald-500' :
                           confidence >= 60 ? 'bg-gradient-to-r from-yellow-500 to-orange-500' :
@@ -128,16 +128,16 @@ export default function IntelligentDirectionSelector({
                       ></div>
                     </div>
                     <span className={`text-xs font-bold ${
-                      confidence >= 80 ? 'text-green-600 dark:text-green-400' :
-                      confidence >= 60 ? 'text-yellow-600 dark:text-yellow-400' :
-                      'text-red-600 dark:text-red-400'
+                      confidence >= 80 ? 'text-green-600' :
+                      confidence >= 60 ? 'text-yellow-600' :
+                      'text-red-600'
                     }`}>
                       {confidence.toFixed(0)}%
                     </span>
                   </div>
                 )}
               </div>
-              <p className="text-sm text-blue-800 dark:text-blue-200 leading-relaxed">{analysis}</p>
+              <p className="text-sm text-blue-800 leading-relaxed">{analysis}</p>
             </div>
           </div>
         </div>
@@ -150,8 +150,8 @@ export default function IntelligentDirectionSelector({
           onClick={() => handleManualSelection('LONG')}
           className={`relative p-6 rounded-2xl border-2 transition-all duration-300 group overflow-hidden ${
             selectedDirection === 'LONG'
-              ? 'border-green-500 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 shadow-lg shadow-green-500/25'
-              : 'border-gray-200 dark:border-gray-600 bg-white/50 dark:bg-gray-800/50 hover:border-green-300 dark:hover:border-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'
+              ? 'border-green-500 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg shadow-green-500/25'
+              : 'border-gray-200 bg-white hover:border-green-300 hover:bg-green-50'
           }`}
         >
           <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -167,20 +167,20 @@ export default function IntelligentDirectionSelector({
             </div>
             <h3 className={`text-xl font-bold mb-2 ${
               selectedDirection === 'LONG'
-                ? 'text-green-700 dark:text-green-300'
-                : 'text-gray-700 dark:text-gray-300 group-hover:text-green-600 dark:group-hover:text-green-400'
+                ? 'text-green-700'
+                : 'text-gray-700 group-hover:text-green-600'
             }`}>
               LONG
             </h3>
             <p className={`text-sm ${
               selectedDirection === 'LONG'
-                ? 'text-green-600 dark:text-green-400'
-                : 'text-gray-500 dark:text-gray-400 group-hover:text-green-500 dark:group-hover:text-green-400'
+                ? 'text-green-600'
+                : 'text-gray-500 group-hover:text-green-500'
             }`}>
               Buy Low, Sell High
             </p>
             <div className="mt-3 flex items-center justify-center space-x-2 text-xs">
-              <span className={selectedDirection === 'LONG' ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}>
+              <span className={selectedDirection === 'LONG' ? 'text-green-600' : 'text-gray-400'}>
                 Entry → Target ↗
               </span>
             </div>
@@ -201,8 +201,8 @@ export default function IntelligentDirectionSelector({
           onClick={() => handleManualSelection('SHORT')}
           className={`relative p-6 rounded-2xl border-2 transition-all duration-300 group overflow-hidden ${
             selectedDirection === 'SHORT'
-              ? 'border-red-500 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-900/30 dark:to-rose-900/30 shadow-lg shadow-red-500/25'
-              : 'border-gray-200 dark:border-gray-600 bg-white/50 dark:bg-gray-800/50 hover:border-red-300 dark:hover:border-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'
+              ? 'border-red-500 bg-gradient-to-br from-red-50 to-rose-50 shadow-lg shadow-red-500/25'
+              : 'border-gray-200 bg-white hover:border-red-300 hover:bg-red-50'
           }`}
         >
           <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-rose-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -218,20 +218,20 @@ export default function IntelligentDirectionSelector({
             </div>
             <h3 className={`text-xl font-bold mb-2 ${
               selectedDirection === 'SHORT'
-                ? 'text-red-700 dark:text-red-300'
-                : 'text-gray-700 dark:text-gray-300 group-hover:text-red-600 dark:group-hover:text-red-400'
+                ? 'text-red-700'
+                : 'text-gray-700 group-hover:text-red-600'
             }`}>
               SHORT
             </h3>
             <p className={`text-sm ${
               selectedDirection === 'SHORT'
-                ? 'text-red-600 dark:text-red-400'
-                : 'text-gray-500 dark:text-gray-400 group-hover:text-red-500 dark:group-hover:text-red-400'
+                ? 'text-red-600'
+                : 'text-gray-500 group-hover:text-red-500'
             }`}>
               Sell High, Buy Low
             </p>
             <div className="mt-3 flex items-center justify-center space-x-2 text-xs">
-              <span className={selectedDirection === 'SHORT' ? 'text-red-600 dark:text-red-400' : 'text-gray-400'}>
+              <span className={selectedDirection === 'SHORT' ? 'text-red-600' : 'text-gray-400'}>
                 Entry → Target ↘
               </span>
             </div>
@@ -250,12 +250,12 @@ export default function IntelligentDirectionSelector({
 
       {/* Manual Override Notice */}
       {autoDetected && selectedDirection && (
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700/30 rounded-xl p-4">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
           <div className="flex items-center space-x-3">
-            <svg className="w-5 h-5 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
             </svg>
-            <p className="text-sm text-yellow-800 dark:text-yellow-200">
+            <p className="text-sm text-yellow-800">
               Direction was auto-detected. Click a button above to manually override if needed.
             </p>
           </div>
