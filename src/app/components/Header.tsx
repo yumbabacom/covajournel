@@ -42,24 +42,24 @@ export default function Header() {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Element;
-
-      // Check if click is outside account dropdown
+      
       if (showAccountDropdown && !target.closest('[data-account-dropdown]')) {
-        console.log('Closing account dropdown due to outside click');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Closing account dropdown due to outside click');
+        }
         setShowAccountDropdown(false);
       }
-
-      // Check if click is outside user dropdown
+      
       if (showUserDropdown && !target.closest('[data-user-dropdown]')) {
-        console.log('Closing user dropdown due to outside click');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Closing user dropdown due to outside click');
+        }
         setShowUserDropdown(false);
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showAccountDropdown, showUserDropdown]);
 
   // Helper function to get greeting
@@ -79,8 +79,10 @@ export default function Header() {
     return 'TradingJournal';
   };
 
-  // Debug logging
-  console.log('Header render - user:', user?.name, 'selectedAccount:', selectedAccount?.name, 'accounts:', accounts.length, 'showAccountDropdown:', showAccountDropdown);
+  // Debug logging - only in development
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Header render - user:', user?.name, 'selectedAccount:', selectedAccount?.name, 'accounts:', accounts.length, 'showAccountDropdown:', showAccountDropdown);
+  }
 
   return (
     <>
@@ -117,10 +119,43 @@ export default function Header() {
                   <div className="relative flex items-center space-x-3">
                     <div className="w-10 h-10 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                       <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                      </svg>
+                    </div>
+                    <span>Home</span>
+                  </div>
+                </Link>
+                <Link href="/calculator" className="group relative px-6 py-3 text-slate-700 hover:text-blue-600 font-semibold transition-all duration-300 flex items-center space-x-3">
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-300 scale-95 group-hover:scale-100"></div>
+                  <div className="relative flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                       </svg>
                     </div>
                     <span>Calculator</span>
+                  </div>
+                </Link>
+                <Link href="/forex-news" className="group relative px-6 py-3 text-slate-700 hover:text-purple-600 font-semibold transition-all duration-300 flex items-center space-x-3">
+                  <div className="absolute inset-0 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-300 scale-95 group-hover:scale-100"></div>
+                  <div className="relative flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-purple-100 to-pink-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                      <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                      </svg>
+                    </div>
+                    <span>Forex News</span>
+                  </div>
+                </Link>
+                <Link href="/market-hours" className="group relative px-6 py-3 text-slate-700 hover:text-indigo-600 font-semibold transition-all duration-300 flex items-center space-x-3">
+                  <div className="absolute inset-0 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-300 scale-95 group-hover:scale-100"></div>
+                  <div className="relative flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                      <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <span>Market Hours</span>
                   </div>
                 </Link>
               </nav>
@@ -223,178 +258,134 @@ export default function Header() {
                 <div className="flex items-center space-x-6">
                   {/* Account Selector - Enhanced Design */}
                   {(() => {
-                    console.log('Account selector condition check:', {
-                      selectedAccount: selectedAccount?.name,
-                      isAdmin: user.isAdmin,
-                      shouldShow: selectedAccount && !user.isAdmin
-                    });
-                    return selectedAccount && !user.isAdmin;
-                  })() && (
-                    <div className="relative" data-account-dropdown>
-                      <button
-                        onClick={() => {
-                          console.log('Account dropdown clicked, current state:', showAccountDropdown);
-                          setShowAccountDropdown(!showAccountDropdown);
-                        }}
-                        className="group flex items-center space-x-4 px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 rounded-2xl border border-blue-200/50 transition-all duration-300 shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20 hover:scale-105"
-                      >
-                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                    if (process.env.NODE_ENV === 'development') {
+                      console.log('Account selector condition check:', {
+                        hasMultipleAccounts: accounts.length > 1,
+                        accountsLength: accounts.length,
+                        isLoggedIn: !!user,
+                        selectedAccount: selectedAccount?.name
+                      });
+                    }
+                    
+                    const hasMultipleAccounts = accounts.length > 1;
+                    return (
+                      <>
+                        <div 
+                          onClick={() => {
+                            if (process.env.NODE_ENV === 'development') {
+                              console.log('Account dropdown clicked, current state:', showAccountDropdown);
+                            }
+                            if (hasMultipleAccounts) {
+                              setShowAccountDropdown(!showAccountDropdown);
+                            }
+                          }}
+                          className={`flex items-center space-x-3 ${hasMultipleAccounts ? 'cursor-pointer' : 'cursor-default'} transition-all duration-200`}
+                        >
+                          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                            </svg>
+                          </div>
+                          <div className="text-left">
+                            <p className="font-bold text-slate-800 text-lg">{selectedAccount?.name}</p>
+                            <p className="text-sm text-blue-600 font-semibold">${selectedAccount?.currentBalance.toLocaleString()}</p>
+                          </div>
+                          <svg className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                           </svg>
                         </div>
-                        <div className="text-left">
-                          <p className="font-bold text-slate-800 text-lg">{selectedAccount.name}</p>
-                          <p className="text-sm text-blue-600 font-semibold">${selectedAccount.currentBalance.toLocaleString()}</p>
-                        </div>
-                        <svg className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </button>
+                      </>
+                    );
+                  })()}
 
-                      {/* Beautiful Account Dropdown Menu */}
-                      {showAccountDropdown && (
-                        <div className="absolute right-0 top-full mt-4 w-96 bg-white/95 backdrop-blur-2xl rounded-3xl shadow-2xl border border-slate-200/50 z-50 overflow-hidden">
-                          {/* Header */}
-                          <div className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-slate-200/50">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-2xl flex items-center justify-center shadow-lg">
-                                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  {/* Beautiful Account Dropdown Menu */}
+                  {showAccountDropdown && (
+                    <div className="absolute right-0 top-full mt-4 w-96 bg-white/95 backdrop-blur-2xl rounded-3xl shadow-2xl border border-slate-200/50 z-50 overflow-hidden">
+                      {/* Header */}
+                      <div className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-slate-200/50">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-2xl flex items-center justify-center shadow-lg">
+                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                            </svg>
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-bold text-slate-800">Portfolio Accounts</h3>
+                            <p className="text-sm text-slate-600">Switch between your trading accounts</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Account List */}
+                      <div className="p-4 max-h-80 overflow-y-auto">
+                        {accounts.map((account) => (
+                          <button
+                            key={account.id}
+                            onClick={() => {
+                              selectAccount(account.id);
+                              setShowAccountDropdown(false);
+                            }}
+                            className={`w-full flex items-center space-x-4 p-4 rounded-2xl transition-all duration-300 mb-2 group ${
+                              selectedAccount?.id === account.id
+                                ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-lg'
+                                : 'hover:bg-gradient-to-r hover:from-slate-50 hover:to-slate-100 border-2 border-transparent hover:border-slate-200'
+                            }`}
+                          >
+                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transition-all duration-300 group-hover:scale-110 ${
+                              selectedAccount?.id === account.id
+                                ? 'bg-gradient-to-br from-blue-500 to-indigo-500'
+                                : account.isDefault
+                                ? 'bg-gradient-to-br from-emerald-500 to-teal-500'
+                                : 'bg-gradient-to-br from-slate-400 to-slate-500'
+                            }`}>
+                              <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                              </svg>
+                            </div>
+                            <div className="flex-1 text-left">
+                              <div className="flex items-center space-x-2">
+                                <p className="font-bold text-slate-800 text-lg">{account.name}</p>
+                                {account.isDefault && (
+                                  <span className="px-3 py-1 bg-emerald-100 text-emerald-700 text-xs rounded-full font-semibold">
+                                    Default
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-blue-600 font-semibold">
+                                ${account.currentBalance.toLocaleString()}
+                              </p>
+                            </div>
+                            {selectedAccount?.id === account.id && (
+                              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                 </svg>
                               </div>
-                              <div>
-                                <h3 className="text-xl font-bold text-slate-800">Portfolio Accounts</h3>
-                                <p className="text-sm text-slate-600">Switch between your trading accounts</p>
-                              </div>
-                            </div>
-                          </div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
 
-                          {/* Account List */}
-                          <div className="p-4 max-h-80 overflow-y-auto">
-                            {accounts.map((account) => (
-                              <button
-                                key={account.id}
-                                onClick={() => {
-                                  selectAccount(account.id);
-                                  setShowAccountDropdown(false);
-                                }}
-                                className={`w-full flex items-center space-x-4 p-4 rounded-2xl transition-all duration-300 mb-2 group ${
-                                  selectedAccount?.id === account.id
-                                    ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-lg'
-                                    : 'hover:bg-gradient-to-r hover:from-slate-50 hover:to-slate-100 border-2 border-transparent hover:border-slate-200'
-                                }`}
-                              >
-                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transition-all duration-300 group-hover:scale-110 ${
-                                  selectedAccount?.id === account.id
-                                    ? 'bg-gradient-to-br from-blue-500 to-indigo-500'
-                                    : account.isDefault
-                                    ? 'bg-gradient-to-br from-emerald-500 to-teal-500'
-                                    : 'bg-gradient-to-br from-slate-400 to-slate-500'
-                                }`}>
-                                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                                  </svg>
-                                </div>
-                                <div className="flex-1 text-left">
-                                  <div className="flex items-center space-x-2">
-                                    <p className="font-bold text-slate-800 text-lg">{account.name}</p>
-                                    {account.isDefault && (
-                                      <span className="px-3 py-1 bg-emerald-100 text-emerald-700 text-xs rounded-full font-semibold">
-                                        Default
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="text-sm text-blue-600 font-semibold">
-                                    ${account.currentBalance.toLocaleString()}
-                                  </p>
-                                </div>
-                                {selectedAccount?.id === account.id && (
-                                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                    </svg>
-                                  </div>
-                                )}
-                              </button>
-                            ))}
-                          </div>
-
-                          {/* Add Account Button */}
-                          <div className="p-6 border-t border-slate-200/50 bg-gradient-to-r from-slate-50 to-slate-100">
-                            <button
-                              onClick={() => {
-                                console.log('Add account button clicked');
-                                setIsAddAccountModalOpen(true);
-                                setShowAccountDropdown(false);
-                              }}
-                              className="w-full px-6 py-4 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-2xl font-bold transition-all duration-300 shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-105 flex items-center justify-center space-x-3"
-                            >
-                              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                              </svg>
-                              <span>Add New Account</span>
-                            </button>
-                          </div>
-                        </div>
-                      )}
+                      {/* Add Account Button */}
+                      <div className="p-6 border-t border-slate-200/50 bg-gradient-to-r from-slate-50 to-slate-100">
+                        <button
+                          onClick={() => {
+                            if (process.env.NODE_ENV === 'development') {
+                              console.log('Add account button clicked');
+                            }
+                            setIsAddAccountModalOpen(true);
+                            setShowAccountDropdown(false);
+                          }}
+                          className="w-full px-6 py-4 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-2xl font-bold transition-all duration-300 shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-105 flex items-center justify-center space-x-3"
+                        >
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                          </svg>
+                          <span>Add New Account</span>
+                        </button>
+                      </div>
                     </div>
                   )}
-
-                  {/* User Profile Dropdown */}
-                  <div className="relative" data-user-dropdown>
-                    <button
-                      onClick={() => setShowUserDropdown(!showUserDropdown)}
-                      className="group flex items-center space-x-3 px-6 py-4 bg-gradient-to-r from-slate-50 to-slate-100 hover:from-slate-100 hover:to-slate-200 rounded-2xl border border-slate-200/50 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
-                    >
-                      <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                        <span className="text-white text-lg font-bold">
-                          {user.name.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="text-left">
-                        <p className="font-bold text-slate-800">{user.name}</p>
-                        <p className="text-sm text-slate-600">{user.email}</p>
-                      </div>
-                      <svg className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-
-                    {/* User Dropdown Menu */}
-                    {showUserDropdown && (
-                      <div className="absolute right-0 top-full mt-4 w-72 bg-white/95 backdrop-blur-2xl rounded-3xl shadow-2xl border border-slate-200/50 z-50 overflow-hidden">
-                        <div className="p-6">
-                          <div className="flex items-center space-x-4 mb-6">
-                            <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-3xl flex items-center justify-center shadow-xl">
-                              <span className="text-white text-2xl font-bold">
-                                {user.name.charAt(0).toUpperCase()}
-                              </span>
-                            </div>
-                            <div>
-                              <p className="font-bold text-slate-800 text-lg">{user.name}</p>
-                              <p className="text-sm text-slate-600">{user.email}</p>
-                              {user.isAdmin && (
-                                <span className="inline-block px-3 py-1 bg-red-100 text-red-700 text-xs rounded-full font-semibold mt-1">
-                                  Administrator
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          <button
-                            onClick={handleLogout}
-                            className="w-full px-6 py-4 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white rounded-2xl font-bold transition-all duration-300 shadow-lg shadow-red-500/30 hover:shadow-red-500/50 hover:scale-105 flex items-center justify-center space-x-3"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                            </svg>
-                            <span>Logout</span>
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
                 </div>
               </div>
             </div>
@@ -407,10 +398,34 @@ export default function Header() {
                 <Link href="/" className="flex items-center space-x-3 px-4 py-3 text-slate-700 hover:text-emerald-600 hover:bg-emerald-50 rounded-2xl transition-all duration-300 font-semibold">
                   <div className="w-10 h-10 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-xl flex items-center justify-center">
                     <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                    </svg>
+                  </div>
+                  <span>Home</span>
+                </Link>
+                <Link href="/calculator" className="flex items-center space-x-3 px-4 py-3 text-slate-700 hover:text-blue-600 hover:bg-blue-50 rounded-2xl transition-all duration-300 font-semibold">
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-xl flex items-center justify-center">
+                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                     </svg>
                   </div>
                   <span>Calculator</span>
+                </Link>
+                <Link href="/forex-news" className="flex items-center space-x-3 px-4 py-3 text-slate-700 hover:text-purple-600 hover:bg-purple-50 rounded-2xl transition-all duration-300 font-semibold">
+                  <div className="w-10 h-10 bg-gradient-to-br from-purple-100 to-pink-100 rounded-xl flex items-center justify-center">
+                    <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                    </svg>
+                  </div>
+                  <span>Forex News</span>
+                </Link>
+                <Link href="/market-hours" className="flex items-center space-x-3 px-4 py-3 text-slate-700 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all duration-300 font-semibold">
+                  <div className="w-10 h-10 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-xl flex items-center justify-center">
+                    <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <span>Market Hours</span>
                 </Link>
                 <button
                   onClick={handleLogin}

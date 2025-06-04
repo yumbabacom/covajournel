@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 interface TradingPair {
   symbol: string;
@@ -228,15 +229,171 @@ const categoryIcons = {
   ),
 };
 
+// Flag component
+const FlagIcon = ({ countryCode, className = "w-6 h-4" }: { countryCode?: string; className?: string }) => {
+  if (!countryCode) {
+    return <div className={`${className} bg-gray-200 rounded-sm flex items-center justify-center text-xs`}>?</div>;
+  }
+
+  const flagStyle = {
+    backgroundImage: `url(https://flagcdn.com/w40/${countryCode.toLowerCase()}.png)`,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat',
+    display: 'inline-block',
+    borderRadius: '2px',
+    border: '1px solid rgba(0,0,0,0.1)'
+  };
+
+  return (
+    <span
+      className={className}
+      style={flagStyle}
+      title={countryCode.toUpperCase()}
+    />
+  );
+};
+
+// Get country flag for currency codes
+const getCurrencyFlag = (currency: string) => {
+  const flagMap: { [key: string]: string } = {
+    'USD': 'us', 'EUR': 'eu', 'GBP': 'gb', 'JPY': 'jp', 'CHF': 'ch',
+    'CAD': 'ca', 'AUD': 'au', 'NZD': 'nz', 'SEK': 'se', 'NOK': 'no',
+    'DKK': 'dk', 'PLN': 'pl', 'CZK': 'cz', 'HUF': 'hu', 'TRY': 'tr',
+    'ZAR': 'za', 'MXN': 'mx', 'SGD': 'sg', 'HKD': 'hk', 'CNH': 'cn',
+    'CNY': 'cn', 'INR': 'in', 'KRW': 'kr', 'BRL': 'br', 'RUB': 'ru'
+  };
+  return flagMap[currency.toUpperCase()];
+};
+
+// Get asset/company country flag
+const getAssetFlag = (symbol: string) => {
+  const assetFlagMap: { [key: string]: string } = {
+    // US Stocks
+    'AAPL': 'us', 'AMZN': 'us', 'GOOGL': 'us', 'META': 'us', 'NFLX': 'us',
+    'MSFT': 'us', 'TSLA': 'us', 'NVDA': 'us', 'AMD': 'us', 'INTC': 'us',
+    'CRM': 'us', 'ORCL': 'us', 'ADBE': 'us', 'PYPL': 'us', 'UBER': 'us',
+    'LYFT': 'us', 'SPOT': 'us', 'ZOOM': 'us', 'SHOP': 'ca', 'SQ': 'us',
+    'TWTR': 'us', 'SNAP': 'us', 'PINS': 'us', 'ROKU': 'us', 'COIN': 'us',
+    'HOOD': 'us', 'PLTR': 'us', 'RBLX': 'us', 'UNITY': 'us', 'SNOW': 'us',
+    'CRWD': 'us', 'ZM': 'us', 'DOCU': 'us', 'OKTA': 'us', 'TWLO': 'us',
+    'DDOG': 'us', 'MDB': 'us', 'SPLK': 'us', 'WDAY': 'us', 'NOW': 'us',
+    'TEAM': 'au',
+
+    // Indices
+    'SPX500': 'us', 'NAS100': 'us', 'US30': 'us', 'UK100': 'gb',
+    'GER40': 'de', 'FRA40': 'fr', 'ESP35': 'es', 'ITA40': 'it',
+    'JPN225': 'jp', 'AUS200': 'au', 'HK50': 'hk', 'CHN50': 'cn',
+    'IND50': 'in', 'SWI20': 'ch', 'NLD25': 'nl', 'SWE30': 'se',
+    'NOR25': 'no', 'RUS50': 'ru', 'BRA60': 'br', 'MEX35': 'mx'
+  };
+  return assetFlagMap[symbol.toUpperCase()];
+};
+
+// Get trading pair flags
+const getTradingPairFlags = (pair: TradingPair) => {
+  if (pair.category === 'forex') {
+    // For forex pairs, show both currency flags
+    const baseFlag = getCurrencyFlag(pair.baseAsset);
+    const quoteFlag = getCurrencyFlag(pair.quoteAsset);
+    return {
+      primary: baseFlag,
+      secondary: quoteFlag,
+      display: 'dual' as const
+    };
+  } else if (pair.category === 'crypto') {
+    // For crypto pairs, show crypto symbol and quote currency flag
+    const quoteFlag = getCurrencyFlag(pair.quoteAsset);
+    return {
+      primary: '₿', // Bitcoin symbol as crypto indicator
+      secondary: quoteFlag,
+      display: 'dual' as const
+    };
+  } else if (pair.category === 'stocks') {
+    // For stocks, show company country flag
+    const assetFlag = getAssetFlag(pair.baseAsset);
+    return {
+      primary: assetFlag,
+      secondary: '',
+      display: 'single' as const
+    };
+  } else if (pair.category === 'indices') {
+    // For indices, show country flag
+    const assetFlag = getAssetFlag(pair.baseAsset);
+    return {
+      primary: assetFlag,
+      secondary: '',
+      display: 'single' as const
+    };
+  } else if (pair.category === 'commodities') {
+    // For commodities, show symbols
+    const getCommodityIcon = (baseAsset: string) => {
+      switch (baseAsset) {
+        case 'XAU':
+          return (
+            <svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.293l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13a1 1 0 102 0V9.414l1.293 1.293a1 1 0 001.414-1.414z" clipRule="evenodd" />
+            </svg>
+          );
+        case 'XAG':
+          return (
+            <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.293l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13a1 1 0 102 0V9.414l1.293 1.293a1 1 0 001.414-1.414z" clipRule="evenodd" />
+            </svg>
+          );
+        case 'OIL':
+          return (
+            <svg className="w-4 h-4 text-black" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4zm2 2h8v8H6V6z" clipRule="evenodd" />
+            </svg>
+          );
+        case 'GAS':
+          return (
+            <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          );
+        default:
+          return (
+            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          );
+      }
+    };
+    
+    return {
+      primary: getCommodityIcon(pair.baseAsset),
+      secondary: '',
+      display: 'icon' as const
+    };
+  }
+
+  // Fallback
+  return {
+    primary: '',
+    secondary: '',
+    display: 'none' as const
+  };
+};
+
 export default function TradingPairSelector({ selectedPair, onPairSelect }: TradingPairSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current && 
+        !dropdownRef.current.contains(event.target as Node) &&
+        dropdownContentRef.current &&
+        !dropdownContentRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     }
@@ -244,6 +401,30 @@ export default function TradingPairSelector({ selectedPair, onPairSelect }: Trad
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    function updatePosition() {
+      if (dropdownRef.current && isOpen) {
+        const rect = dropdownRef.current.getBoundingClientRect();
+        setDropdownPosition({
+          top: rect.bottom + window.scrollY + 8,
+          left: rect.left + window.scrollX,
+          width: rect.width
+        });
+      }
+    }
+
+    updatePosition();
+    
+    if (isOpen) {
+      window.addEventListener('scroll', updatePosition);
+      window.addEventListener('resize', updatePosition);
+      return () => {
+        window.removeEventListener('scroll', updatePosition);
+        window.removeEventListener('resize', updatePosition);
+      };
+    }
+  }, [isOpen]);
 
   const filteredPairs = tradingPairs.filter(pair => {
     const matchesSearch = pair.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -264,7 +445,7 @@ export default function TradingPairSelector({ selectedPair, onPairSelect }: Trad
   const selectedPairData = tradingPairs.find(pair => pair.symbol === selectedPair);
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative z-[100000]" ref={dropdownRef}>
       <label className="block text-sm font-bold text-gray-700 mb-3 uppercase tracking-wider flex items-center">
         <div className="w-6 h-6 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center mr-3">
           <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -283,11 +464,44 @@ export default function TradingPairSelector({ selectedPair, onPairSelect }: Trad
           <div className="flex items-center space-x-5">
             {selectedPairData ? (
               <>
-                <div className={`w-14 h-14 bg-gradient-to-br ${categoryColors[selectedPairData.category]} rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform duration-300`}>
-                  <div className="text-white">
-                    {categoryIcons[selectedPairData.category]}
+                {/* Display flags for selected pair */}
+                <div className="flex items-center space-x-3">
+                  {/* Flag display */}
+                  <div className="flex items-center space-x-2">
+                    {(() => {
+                      const flags = getTradingPairFlags(selectedPairData);
+                      
+                      if (flags.display === 'dual') {
+                        return (
+                          <div className="flex items-center space-x-1 bg-white rounded-lg p-2 border border-gray-200 shadow-sm">
+                            {flags.primary === '₿' ? (
+                              <span className="text-orange-500 font-bold text-lg">₿</span>
+                            ) : (
+                              <FlagIcon countryCode={flags.primary} className="w-6 h-4" />
+                            )}
+                            <span className="text-gray-400 font-bold">/</span>
+                            <FlagIcon countryCode={flags.secondary} className="w-6 h-4" />
+                          </div>
+                        );
+                      } else if (flags.display === 'single') {
+                        return (
+                          <div className="bg-white rounded-lg p-2 border border-gray-200 shadow-sm">
+                            <FlagIcon countryCode={flags.primary} className="w-6 h-4" />
+                          </div>
+                        );
+                      } else if (flags.display === 'icon') {
+                        return (
+                          <div className="bg-white rounded-lg p-2 border border-gray-200 shadow-sm flex items-center justify-center">
+                            {flags.primary}
+                          </div>
+                        );
+                      }
+                      
+                      return null;
+                    })()}
                   </div>
                 </div>
+                
                 <div className="text-left">
                   <p className="text-2xl font-bold text-gray-900 group-hover:text-emerald-600 transition-colors duration-300">{selectedPairData.symbol}</p>
                   <p className="text-sm text-gray-600 group-hover:text-gray-700 transition-colors duration-300">{selectedPairData.name}</p>
@@ -323,9 +537,18 @@ export default function TradingPairSelector({ selectedPair, onPairSelect }: Trad
         </div>
       </button>
 
-      {/* Beautiful Dropdown Panel */}
-      {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-4 bg-white border border-gray-200 rounded-2xl shadow-2xl z-50 max-h-[500px] overflow-hidden">
+      {/* Portal-based Dropdown Panel */}
+      {isOpen && typeof window !== 'undefined' && createPortal(
+        <div 
+          ref={dropdownContentRef}
+          className="fixed bg-white border border-gray-200 rounded-2xl shadow-2xl max-h-[500px] overflow-hidden"
+          style={{
+            top: dropdownPosition.top,
+            left: dropdownPosition.left,
+            width: dropdownPosition.width,
+            zIndex: 999999
+          }}
+        >
           {/* Enhanced Search and Category Filter */}
           <div className="p-6 border-b border-gray-200">
             {/* Search Bar */}
@@ -397,11 +620,41 @@ export default function TradingPairSelector({ selectedPair, onPairSelect }: Trad
                       onClick={() => handlePairSelect(pair.symbol)}
                       className="w-full p-4 flex items-center space-x-4 hover:bg-gray-50 rounded-2xl transition-all duration-300 group border border-transparent hover:border-gray-200"
                     >
-                      <div className={`w-12 h-12 bg-gradient-to-br ${categoryColors[pair.category]} rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform duration-300`}>
-                        <div className="text-white">
-                          {categoryIcons[pair.category]}
-                        </div>
+                      {/* Flag display for each pair */}
+                      <div className="flex items-center space-x-2">
+                        {(() => {
+                          const flags = getTradingPairFlags(pair);
+                          
+                          if (flags.display === 'dual') {
+                            return (
+                              <div className="flex items-center space-x-1 bg-gray-50 rounded-lg p-1 border border-gray-100">
+                                {flags.primary === '₿' ? (
+                                  <span className="text-orange-500 font-bold text-sm">₿</span>
+                                ) : (
+                                  <FlagIcon countryCode={flags.primary} className="w-5 h-3" />
+                                )}
+                                <span className="text-gray-400 text-xs">/</span>
+                                <FlagIcon countryCode={flags.secondary} className="w-5 h-3" />
+                              </div>
+                            );
+                          } else if (flags.display === 'single') {
+                            return (
+                              <div className="bg-gray-50 rounded-lg p-1 border border-gray-100">
+                                <FlagIcon countryCode={flags.primary} className="w-5 h-3" />
+                              </div>
+                            );
+                          } else if (flags.display === 'icon') {
+                            return (
+                              <div className="bg-gray-50 rounded-lg p-1 border border-gray-100 flex items-center justify-center">
+                                {flags.primary}
+                              </div>
+                            );
+                          }
+                          
+                          return null;
+                        })()}
                       </div>
+                      
                       <div className="flex-1 text-left">
                         <p className="font-bold text-gray-900 text-lg group-hover:text-emerald-600 transition-colors duration-300">{pair.symbol}</p>
                         <p className="text-sm text-gray-600 group-hover:text-gray-700 transition-colors duration-300">{pair.name}</p>
@@ -437,11 +690,41 @@ export default function TradingPairSelector({ selectedPair, onPairSelect }: Trad
                       onClick={() => handlePairSelect(pair.symbol)}
                       className="w-full p-4 flex items-center space-x-4 hover:bg-gray-50 rounded-2xl transition-all duration-300 group border border-transparent hover:border-gray-200"
                     >
-                      <div className={`w-12 h-12 bg-gradient-to-br ${categoryColors[pair.category]} rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform duration-300`}>
-                        <div className="text-white">
-                          {categoryIcons[pair.category]}
-                        </div>
+                      {/* Flag display for each pair */}
+                      <div className="flex items-center space-x-2">
+                        {(() => {
+                          const flags = getTradingPairFlags(pair);
+                          
+                          if (flags.display === 'dual') {
+                            return (
+                              <div className="flex items-center space-x-1 bg-gray-50 rounded-lg p-1 border border-gray-100">
+                                {flags.primary === '₿' ? (
+                                  <span className="text-orange-500 font-bold text-sm">₿</span>
+                                ) : (
+                                  <FlagIcon countryCode={flags.primary} className="w-5 h-3" />
+                                )}
+                                <span className="text-gray-400 text-xs">/</span>
+                                <FlagIcon countryCode={flags.secondary} className="w-5 h-3" />
+                              </div>
+                            );
+                          } else if (flags.display === 'single') {
+                            return (
+                              <div className="bg-gray-50 rounded-lg p-1 border border-gray-100">
+                                <FlagIcon countryCode={flags.primary} className="w-5 h-3" />
+                              </div>
+                            );
+                          } else if (flags.display === 'icon') {
+                            return (
+                              <div className="bg-gray-50 rounded-lg p-1 border border-gray-100 flex items-center justify-center">
+                                {flags.primary}
+                              </div>
+                            );
+                          }
+                          
+                          return null;
+                        })()}
                       </div>
+                      
                       <div className="flex-1 text-left">
                         <p className="font-bold text-gray-900 text-lg group-hover:text-emerald-600 transition-colors duration-300">{pair.symbol}</p>
                         <p className="text-sm text-gray-600 group-hover:text-gray-700 transition-colors duration-300">{pair.name}</p>
@@ -469,7 +752,8 @@ export default function TradingPairSelector({ selectedPair, onPairSelect }: Trad
               </div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

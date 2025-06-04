@@ -113,6 +113,36 @@ export async function PUT(
       updateFields.currentBalance = newBalance;
     }
 
+    // ✅ Handle balance update from trade P&L
+    if (updateData.action === 'updateBalance' && updateData.amount !== undefined) {
+      console.log('🏦 Processing balance update:', {
+        currentBalance: existingAccount.currentBalance,
+        amount: updateData.amount,
+        tradeId: updateData.tradeId,
+        reason: updateData.reason
+      });
+
+      const currentBalance = parseFloat(existingAccount.currentBalance) || 0;
+      const pnlAmount = parseFloat(updateData.amount) || 0;
+      const newBalance = currentBalance + pnlAmount;
+
+      console.log('💰 Balance calculation:', {
+        current: currentBalance,
+        pnl: pnlAmount,
+        new: newBalance
+      });
+
+      updateFields.currentBalance = newBalance;
+      
+      // Add transaction record to account if needed (optional feature)
+      console.log('💳 Balance updated successfully:', {
+        account: existingAccount.name,
+        previousBalance: currentBalance,
+        newBalance: newBalance,
+        change: pnlAmount
+      });
+    }
+
     // Handle default account setting
     if (updateData.isDefault === true) {
       // First, unset all other accounts as default

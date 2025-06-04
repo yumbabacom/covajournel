@@ -1,184 +1,198 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase, COLLECTIONS } from '@/lib/mongodb';
-import { getUserFromRequest } from '@/lib/auth';
-import { ObjectId } from 'mongodb';
+import { NextResponse } from 'next/server';
+import connectDB from '@/lib/mongoose';
+import Trade from '@/models/Trade';
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
-    // Verify authentication
-    const user = getUserFromRequest(request);
-    if (!user) {
-      return NextResponse.json(
-        { message: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const tradeData = await request.json();
-    console.log('Received trade data:', tradeData);
-
-    // Validate required fields
-    const requiredFields = [
-      'symbol', 'entryPrice', 'exitPrice', 'stopLoss',
-      'accountSize', 'riskPercentage', 'lotSize', 'accountId'
-    ];
-
-    for (const field of requiredFields) {
-      if (tradeData[field] === undefined || tradeData[field] === null || tradeData[field] === '') {
-        console.log(`Missing field: ${field}, value:`, tradeData[field]);
-        return NextResponse.json(
-          { message: `${field} is required` },
-          { status: 400 }
-        );
+    // Ensure database connection
+    await connectDB();
+    
+    let tradeData: any = {};
+    
+    // Check content type to handle both JSON and FormData
+    const contentType = request.headers.get('content-type');
+    
+    if (contentType?.includes('application/json')) {
+      // Handle JSON submissions (AM trader)
+      tradeData = await request.json();
+    } else if (contentType?.includes('multipart/form-data')) {
+      // Handle FormData submissions (main dashboard)
+      const formData = await request.formData();
+      
+      // Convert FormData to object
+      tradeData = {};
+      for (const [key, value] of formData.entries()) {
+        if (key === 'images') {
+          // Skip images for now - they need proper file upload handling
+          continue;
+        } else if (key === 'tags') {
+          // Handle multiple tags
+          if (!tradeData.tags) tradeData.tags = [];
+          tradeData.tags.push(value);
+        } else {
+          tradeData[key] = value;
+        }
       }
+      
+      // Set context to 'main' for FormData submissions (main dashboard trades)
+      tradeData.context = 'main';
+    } else {
+      throw new Error('Unsupported content type');
     }
-
-    // Special validation for lotSize - it can be 0 but not NaN
-    if (isNaN(parseFloat(tradeData.lotSize))) {
-      console.log('Invalid lotSize:', tradeData.lotSize);
-      return NextResponse.json(
-        { message: 'lotSize must be a valid number' },
-        { status: 400 }
-      );
+    
+    // Ensure context is set (default to 'main' if not specified)
+    if (!tradeData.context) {
+      tradeData.context = 'main';
     }
-
-    const db = await getDatabase();
-    const tradesCollection = db.collection(COLLECTIONS.TRADES);
-
-    // Create trade record
-    const newTrade = {
-      userId: new ObjectId(user.userId),
-      accountId: new ObjectId(tradeData.accountId),
-      symbol: tradeData.symbol,
-      category: tradeData.category || 'Forex',
-      entryPrice: parseFloat(tradeData.entryPrice),
-      exitPrice: parseFloat(tradeData.exitPrice),
-      stopLoss: parseFloat(tradeData.stopLoss),
-      accountSize: parseFloat(tradeData.accountSize),
-      riskPercentage: parseFloat(tradeData.riskPercentage),
-      riskAmount: parseFloat(tradeData.riskAmount || 0),
-      lotSize: parseFloat(tradeData.lotSize || 0),
-      profitPips: parseFloat(tradeData.profitPips || 0),
-      lossPips: parseFloat(tradeData.lossPips || 0),
-      profitDollars: parseFloat(tradeData.profitDollars || 0),
-      lossDollars: parseFloat(tradeData.lossDollars || 0),
-      riskRewardRatio: parseFloat(tradeData.riskRewardRatio || 0),
-      tradeDirection: tradeData.tradeDirection || 'LONG',
-      status: tradeData.status || 'PLANNED', // PLANNED, ACTIVE, CLOSED
-      notes: tradeData.notes || '',
-      tags: tradeData.tags || [],
-      images: tradeData.images || [],
-      strategyId: tradeData.strategyId ? new ObjectId(tradeData.strategyId) : null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    const result = await tradesCollection.insertOne(newTrade);
-
-    return NextResponse.json({
-      message: 'Trade saved successfully',
-      tradeId: result.insertedId.toString(),
-      trade: {
-        ...newTrade,
-        id: result.insertedId.toString(),
-        userId: user.userId,
-      }
-    }, { status: 201 });
-
+    
+    console.log('Creating trade with context:', tradeData.context);
+    
+    // Create and save trade
+    const trade = new Trade(tradeData);
+    const savedTrade = await trade.save();
+    
+    console.log('Trade saved successfully:', savedTrade._id);
+    
+    return NextResponse.json({ 
+      success: true, 
+      trade: savedTrade,
+      message: 'Trade created successfully' 
+    });
   } catch (error) {
-    console.error('Save trade error:', error);
+    console.error('Error creating trade:', error);
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { success: false, error: 'Failed to create trade', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
   try {
-    // Verify authentication
-    const user = getUserFromRequest(request);
-    if (!user) {
-      return NextResponse.json(
-        { message: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
+    // Ensure database connection
+    await connectDB();
+    
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
-    const status = searchParams.get('status');
-    const symbol = searchParams.get('symbol');
     const accountId = searchParams.get('accountId');
+    const context = searchParams.get('context');
+    const userId = searchParams.get('userId');
 
-    const db = await getDatabase();
-    const tradesCollection = db.collection(COLLECTIONS.TRADES);
-
+    console.log('GET /api/trades called with:', { accountId, context, userId });
+    
     // Build query
-    const query: any = { userId: new ObjectId(user.userId) };
-    if (status) query.status = status;
-    if (symbol) query.symbol = { $regex: symbol, $options: 'i' };
-    if (accountId) query.accountId = new ObjectId(accountId);
-
-    // Get total count
-    const total = await tradesCollection.countDocuments(query);
-
-    // Get trades with pagination
-    const trades = await tradesCollection
-      .find(query)
+    const query: any = {};
+    
+    if (accountId) {
+      query.accountId = accountId;
+    }
+    
+    if (userId) {
+      query.userId = userId;
+    }
+    
+    if (context) {
+      query.context = context;
+    }
+    
+    console.log('MongoDB query:', query);
+    
+    // Fetch trades from MongoDB
+    const trades = await Trade.find(query)
       .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .toArray();
-
-    // Get strategy information for trades that have strategyId
-    const strategiesCollection = db.collection(COLLECTIONS.STRATEGIES);
-    const transformedTrades = await Promise.all(trades.map(async (trade) => {
-      let strategy = null;
-      if (trade.strategyId) {
-        try {
-          const strategyDoc = await strategiesCollection.findOne({
-            _id: new ObjectId(trade.strategyId),
-            userId: new ObjectId(user.userId)
-          });
-          if (strategyDoc) {
-            strategy = {
-              id: strategyDoc._id.toString(),
-              name: strategyDoc.name,
-              marketType: strategyDoc.marketType,
-              timeframe: strategyDoc.timeframe,
-            };
-          }
-        } catch (error) {
-          console.error('Error fetching strategy:', error);
-        }
-      }
-
-      return {
+      .lean();
+    
+    console.log(`Found ${trades.length} trades`);
+    
+    // Transform trades to have id field instead of _id
+    const transformedTrades = trades.map((trade: any) => {
+      console.log('Original trade._id:', trade._id, 'Type:', typeof trade._id);
+      const transformedTrade = {
         ...trade,
         id: trade._id.toString(),
-        userId: trade.userId.toString(),
-        accountId: trade.accountId?.toString(),
-        strategyId: trade.strategyId?.toString(),
-        strategy,
+        // Remove the original _id field to avoid confusion
+        _id: undefined
       };
-    }));
+      console.log('Transformed trade.id:', transformedTrade.id, 'Type:', typeof transformedTrade.id);
+      return transformedTrade;
+    });
+    
+    // Log context breakdown
+    const contextBreakdown = trades.reduce((acc: any, trade) => {
+      const ctx = trade.context || 'undefined';
+      acc[ctx] = (acc[ctx] || 0) + 1;
+      return acc;
+    }, {});
+    console.log('Context breakdown:', contextBreakdown);
 
     return NextResponse.json({
+      success: true,
       trades: transformedTrades,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
+      total: transformedTrades.length,
+      debug: {
+        totalInDatabase: trades.length,
+        contextBreakdown,
+        filters: { accountId, context, userId },
+        query
       }
-    }, { status: 200 });
-
+    });
   } catch (error) {
-    console.error('Get trades error:', error);
+    console.error('Error fetching trades:', error);
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { success: false, error: 'Failed to fetch trades', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    // Ensure database connection
+    await connectDB();
+    
+    const { searchParams } = new URL(request.url);
+    const clearAll = searchParams.get('clearAll');
+    const tradeId = searchParams.get('id');
+    
+    if (clearAll === 'true') {
+      // Delete all trades
+      const result = await Trade.deleteMany({});
+      const deletedCount = result.deletedCount || 0;
+      
+      console.log(`Cleared ${deletedCount} trades`);
+      
+      return NextResponse.json({
+        success: true,
+        message: `Cleared ${deletedCount} trades`,
+        deletedCount
+      });
+    } else if (tradeId) {
+      // Delete specific trade
+      const result = await Trade.findByIdAndDelete(tradeId);
+      
+      if (!result) {
+        return NextResponse.json(
+          { success: false, error: 'Trade not found' },
+          { status: 404 }
+        );
+      }
+      
+      console.log(`Deleted trade with ID: ${tradeId}`);
+      
+      return NextResponse.json({
+        success: true,
+        message: 'Trade deleted successfully',
+        trade: result
+      });
+    } else {
+      return NextResponse.json(
+        { success: false, error: 'Either clearAll=true or id parameter required' },
+        { status: 400 }
+      );
+    }
+  } catch (error) {
+    console.error('Error deleting trades:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to delete trades', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

@@ -1,141 +1,284 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../components/AuthProvider';
 import { useAccount } from '../components/AccountProvider';
-import AppLayout from '../components/AppLayout';
-import CreateStrategyModal from '../components/CreateStrategyModal';
 import StrategyDetailModal from '../components/StrategyDetailModal';
+import StrategyEditModal from '../components/StrategyEditModal';
+import StrategyCard from '../components/StrategyCard';
+import ErrorBoundary from '../components/ErrorBoundary';
+import { StrategyLibrarySkeleton } from '../components/SimpleLoading';
+import AuthDebug from '../components/AuthDebug';
 
 interface Strategy {
   id: string;
   name: string;
-  marketType: string;
-  setupConditions: string;
-  entryRules: string;
-  exitRules: string;
-  timeframe: string;
-  indicators: string[];
+  description: string;
+  type: 'scalping' | 'swing' | 'position' | 'day' | 'algorithmic';
+  symbols: string[];
+  rules: string[];
+  riskManagement: {
+    maxRiskPerTrade: number;
+    stopLoss: number;
+    takeProfit: number;
+    maxDrawdown: number;
+  };
+  performance?: {
+    totalTrades: number;
+    winRate: number;
+    profitLoss: number;
+    avgReturn: number;
+    maxDrawdown: number;
+    sharpeRatio: number;
+    bestTrade: number;
+    worstTrade: number;
+  };
+  isActive: boolean;
+  isPublic: boolean;
   tags: string[];
-  images: string[];
   createdAt: string;
   updatedAt: string;
-  userId: string;
-  accountId: string;
-  usageCount?: number;
-  winRate?: number;
-  totalPnL?: number;
+  lastUsed?: string;
 }
 
 export default function StrategiesPage() {
-  const { user, isLoading } = useAuth();
+  const { user, loading, isHydrated } = useAuth();
   const { selectedAccount } = useAccount();
   const router = useRouter();
+  
+  // State
   const [strategies, setStrategies] = useState<Strategy[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('my-strategies');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState('all');
+  const [sortBy, setSortBy] = useState('updated');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  
+  // Modal states
   const [selectedStrategy, setSelectedStrategy] = useState<Strategy | null>(null);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [strategyToEdit, setStrategyToEdit] = useState<Strategy | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterMarket, setFilterMarket] = useState('');
-  const [filterTag, setFilterTag] = useState('');
-  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
 
-  useEffect(() => {
-    if (user && selectedAccount) {
-      fetchStrategies();
-    }
-  }, [user, selectedAccount]);
-
+  // Fetch strategies from API
   const fetchStrategies = async () => {
     try {
-      setLoading(true);
+      setIsLoading(true);
+      setError(null);
+
+      if (!user) {
+        router.push('/login');
+        return;
+      }
+
       const token = localStorage.getItem('token');
+      if (!token) {
+        setError('Authentication required');
+        router.push('/login');
+        return;
+      }
+
+      console.log('🔍 Fetching strategies from API...');
       const response = await fetch('/api/strategies', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
-      if (response.ok) {
-        const data = await response.json();
-        setStrategies(data);
-      } else {
-        console.error('Failed to fetch strategies:', response.status, response.statusText);
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error(`HTTP ${response.status}: Failed to fetch strategies`);
       }
+
+      const data = await response.json();
+      console.log('✅ Strategies fetched successfully:', data);
+      
+      // Handle different possible response formats and transform API data to match Strategy interface
+      const rawStrategies = data.strategies || data || [];
+      
+      // Transform API data to match Strategy interface
+      const transformedStrategies: Strategy[] = rawStrategies.map((apiStrategy: any) => ({
+        id: apiStrategy.id || apiStrategy._id?.toString(),
+        name: apiStrategy.name || '',
+        description: apiStrategy.description || '',
+        type: (apiStrategy.marketType || apiStrategy.tradingStyle || 'day') as Strategy['type'],
+        symbols: apiStrategy.symbols || [], // API might not have symbols, use empty array
+        rules: [
+          ...(apiStrategy.setupConditions ? [apiStrategy.setupConditions] : []),
+          ...(apiStrategy.entryRules ? [apiStrategy.entryRules] : []),
+          ...(apiStrategy.exitRules ? [apiStrategy.exitRules] : [])
+        ].filter(rule => rule), // Filter out empty rules
+        riskManagement: {
+          maxRiskPerTrade: parseFloat(apiStrategy.maxRisk || '2'),
+          stopLoss: 1, // Default value since API doesn't provide this
+          takeProfit: 2, // Default value since API doesn't provide this
+          maxDrawdown: parseFloat(apiStrategy.drawdownLimit || '10'),
+        },
+        performance: apiStrategy.usageCount > 0 ? {
+          totalTrades: apiStrategy.usageCount || 0,
+          winRate: apiStrategy.winRate || 0,
+          profitLoss: apiStrategy.totalPnL || 0,
+          avgReturn: 0, // Would need calculation
+          maxDrawdown: parseFloat(apiStrategy.drawdownLimit || '0'),
+          sharpeRatio: parseFloat(apiStrategy.sharpeRatio || '0'),
+          bestTrade: 0, // Would need calculation from trades
+          worstTrade: 0, // Would need calculation from trades
+        } : undefined, // Only include performance if there are trades
+        isActive: true, // Default to active since API doesn't specify
+        isPublic: false, // Default to private
+        tags: apiStrategy.tags || [],
+        createdAt: apiStrategy.createdAt || new Date().toISOString(),
+        updatedAt: apiStrategy.updatedAt || new Date().toISOString(),
+        lastUsed: apiStrategy.lastUsed, // Optional field
+      }));
+      
+      setStrategies(transformedStrategies);
+      
+      if (transformedStrategies.length === 0) {
+        console.log('📝 No strategies found in database');
+      } else {
+        console.log(`📊 Loaded ${transformedStrategies.length} strategies`);
+      }
+
     } catch (error) {
-      console.error('Error fetching strategies:', error);
+      console.error('❌ Error fetching strategies:', error);
+      setError(error instanceof Error ? error.message : 'Failed to fetch strategies');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const handleCreateStrategy = async (strategyData: any) => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/strategies', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(strategyData),
-      });
-
-      if (response.ok) {
-        await fetchStrategies();
-        setIsCreateModalOpen(false);
-      } else {
-        const errorData = await response.json();
-        console.error('Failed to create strategy:', errorData);
-        alert(`Failed to create strategy: ${errorData.error || 'Unknown error'}`);
-      }
-    } catch (error) {
-      console.error('Error creating strategy:', error);
-      alert('Failed to create strategy. Please try again.');
+  // Initialize data fetch
+  useEffect(() => {
+    if (!user) {
+      router.push('/login');
+      return;
     }
+    
+    if (user && isHydrated) {
+      fetchStrategies();
+    }
+  }, [user, isHydrated, router]);
+
+  // ✅ ADD EVENT LISTENERS FOR STRATEGY UPDATES
+  useEffect(() => {
+    const handleStrategiesUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      console.log('📊 Strategies: Strategies updated event received', customEvent.detail);
+      fetchStrategies();
+    };
+
+    const handleStrategyDeleted = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      console.log('📊 Strategies: Strategy deleted event received', customEvent.detail);
+      fetchStrategies();
+    };
+
+    const handleForceRefresh = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      console.log('📊 Strategies: Force refresh event received', customEvent.detail);
+      if (customEvent.detail.action === 'strategyUpdated' || customEvent.detail.action === 'strategyDeleted') {
+        fetchStrategies();
+      }
+    };
+
+    // Add event listeners
+    window.addEventListener('strategiesUpdated', handleStrategiesUpdated);
+    window.addEventListener('strategyDeleted', handleStrategyDeleted);
+    window.addEventListener('forceRefresh', handleForceRefresh);
+
+    // Cleanup event listeners
+    return () => {
+      window.removeEventListener('strategiesUpdated', handleStrategiesUpdated);
+      window.removeEventListener('strategyDeleted', handleStrategyDeleted);
+      window.removeEventListener('forceRefresh', handleForceRefresh);
+    };
+  }, []);
+
+  // Filter and sort strategies
+  const filteredStrategies = useMemo(() => {
+    let filtered = strategies;
+
+    // Filter by search query
+    if (searchQuery) {
+      filtered = filtered.filter(strategy =>
+        strategy.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        strategy.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        strategy.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+      );
+    }
+
+    // Filter by type
+    if (filterType !== 'all') {
+      filtered = filtered.filter(strategy => strategy.type === filterType);
+    }
+
+    // Sort strategies
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'name':
+          return a.name.localeCompare(b.name);
+        case 'performance':
+          return (b.performance?.profitLoss || 0) - (a.performance?.profitLoss || 0);
+        case 'winRate':
+          return (b.performance?.winRate || 0) - (a.performance?.winRate || 0);
+        case 'trades':
+          return (b.performance?.totalTrades || 0) - (a.performance?.totalTrades || 0);
+        case 'updated':
+        default:
+          return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+      }
+    });
+
+    return filtered;
+  }, [strategies, searchQuery, filterType, sortBy]);
+
+  // Handler functions
+  const handleViewStrategy = (strategy: Strategy) => {
+    setSelectedStrategy(strategy);
+    setShowDetailModal(true);
   };
 
   const handleEditStrategy = (strategy: Strategy) => {
-    setStrategyToEdit(strategy);
-    setIsEditModalOpen(true);
-    setSelectedStrategy(null); // Close details modal if open
+    console.log('Edit strategy called with:', strategy);
+    setSelectedStrategy(strategy);
+    setShowEditModal(true);
   };
 
-  const handleUpdateStrategy = async (strategyData: any) => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/strategies/${strategyData.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(strategyData),
-      });
-
-      if (response.ok) {
-        await fetchStrategies();
-        setIsEditModalOpen(false);
-        setStrategyToEdit(null);
-        alert('Strategy updated successfully!');
-      } else {
-        const errorData = await response.json();
-        console.error('Failed to update strategy:', errorData);
-        alert(`Failed to update strategy: ${errorData.error || 'Unknown error'}`);
-      }
-    } catch (error) {
-      console.error('Error updating strategy:', error);
-      alert('Failed to update strategy. Please try again.');
-    }
+  const handleCloneStrategy = (strategy: Strategy) => {
+    console.log('Clone strategy called with:', strategy);
+    const clonedStrategy: Strategy = {
+      ...strategy,
+      id: `${strategy.id}_clone_${Date.now()}`,
+      name: `${strategy.name} (Copy)`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    delete (clonedStrategy as any).lastUsed;
+    delete (clonedStrategy as any).performance; // Remove performance data from clone
+    console.log('Cloned strategy:', clonedStrategy);
+    setSelectedStrategy(clonedStrategy);
+    setShowEditModal(true);
   };
 
   const handleDeleteStrategy = async (strategyId: string) => {
-    if (!confirm('Are you sure you want to delete this strategy?')) return;
-
     try {
+      setError(null);
+      
       const token = localStorage.getItem('token');
+      if (!token) {
+        setError('Authentication required');
+        return;
+      }
+
+      console.log('🗑️ Deleting strategy:', strategyId);
+      
       const response = await fetch(`/api/strategies/${strategyId}`, {
         method: 'DELETE',
         headers: {
@@ -143,723 +286,652 @@ export default function StrategiesPage() {
         },
       });
 
-      if (response.ok) {
-        await fetchStrategies();
-        setSelectedStrategy(null);
+      if (!response.ok) {
+        if (response.status === 401) {
+          router.push('/login');
+          return;
+        }
+        if (response.status === 404) {
+          throw new Error('Strategy not found');
+        }
+        throw new Error(`Failed to delete strategy: HTTP ${response.status}`);
       }
+
+      console.log('✅ Strategy deleted successfully');
+      
+      // Remove from local state
+      setStrategies(prev => prev.filter(s => s.id !== strategyId));
+      setSuccess('Strategy deleted successfully');
+      
+      // ✅ BROADCAST DELETION EVENTS FOR REAL-TIME UPDATES
+      console.log('📡 Broadcasting strategy deletion events...');
+      
+      // Main deletion event
+      window.dispatchEvent(new CustomEvent('strategiesUpdated', { 
+        detail: { 
+          action: 'delete', 
+          strategyId,
+          timestamp: new Date().toISOString(),
+          source: 'strategies-page'
+        } 
+      }));
+
+      // Specific deletion event
+      window.dispatchEvent(new CustomEvent('strategyDeleted', { 
+        detail: { 
+          strategyId,
+          timestamp: new Date().toISOString()
+        } 
+      }));
+
+      // Force refresh event
+      window.dispatchEvent(new CustomEvent('forceRefresh', { 
+        detail: { 
+          action: 'strategyDeleted',
+          strategyId,
+          timestamp: new Date().toISOString()
+        } 
+      }));
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(null), 3000);
+      
     } catch (error) {
-      console.error('Error deleting strategy:', error);
+      console.error('❌ Error deleting strategy:', error);
+      setError(error instanceof Error ? error.message : 'Failed to delete strategy');
     }
   };
 
-  const filteredStrategies = strategies.filter(strategy => {
-    const matchesSearch = strategy.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         strategy.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesMarket = !filterMarket || strategy.marketType === filterMarket;
-    const matchesTag = !filterTag || strategy.tags.includes(filterTag);
+  const handleSaveStrategy = async (strategyData: Strategy) => {
+    try {
+      setError(null);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('Please login to save strategies');
+        return;
+      }
 
-    return matchesSearch && matchesMarket && matchesTag;
-  });
+      // Map the Strategy interface fields to what the API expects
+      const apiData = {
+        name: strategyData.name,
+        description: strategyData.description,
+        marketType: strategyData.type, // Map 'type' to 'marketType'
+        tradingStyle: strategyData.type, // Use type as trading style for now
+        setupConditions: strategyData.rules?.join('; ') || '', // Convert rules array to string
+        entryRules: strategyData.rules?.slice(0, Math.ceil(strategyData.rules.length / 2))?.join('; ') || '',
+        exitRules: strategyData.rules?.slice(Math.ceil(strategyData.rules.length / 2))?.join('; ') || '',
+        riskManagement: JSON.stringify(strategyData.riskManagement || {}),
+        tags: strategyData.tags || [],
+        indicators: [], // Add default empty array
+        symbols: strategyData.symbols || [], // Add symbols if available
+        isActive: strategyData.isActive || true,
+        isPublic: strategyData.isPublic || false,
+      };
 
-  const marketTypes = ['Forex', 'Stocks', 'Crypto', 'Options', 'Futures'];
-  const allTags = [...new Set(strategies.flatMap(s => s.tags))];
+      // Check if this is an existing strategy (not a clone) that needs updating
+      const isExistingStrategy = !strategyData.id.includes('clone') && strategies.find(s => s.id === strategyData.id);
+      
+      if (isExistingStrategy) {
+        // Update existing strategy
+        console.log('🔄 Updating existing strategy:', strategyData.id);
+        const response = await fetch(`/api/strategies/${strategyData.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify(apiData),
+        });
 
-  if (isLoading || loading) {
-    return (
-      <AppLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center">
-            <div className="w-16 h-16 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading strategies...</p>
-          </div>
-        </div>
-      </AppLayout>
-    );
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to update strategy');
+        }
+
+        const updatedStrategy = await response.json();
+        console.log('✅ Strategy updated:', updatedStrategy);
+        
+        // Update in local state
+        setStrategies(prev => prev.map(s => s.id === strategyData.id ? strategyData : s));
+        setSuccess('Strategy updated successfully!');
+        
+      } else {
+        // Create new strategy (either truly new or cloned)
+        console.log('➕ Creating new strategy');
+        const response = await fetch('/api/strategies', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify(apiData),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to create strategy');
+        }
+
+        const newStrategy = await response.json();
+        console.log('✅ New strategy created:', newStrategy);
+        
+        // Transform the API response to match our Strategy interface
+        const strategyToAdd: Strategy = {
+          id: newStrategy.id,
+          name: newStrategy.name,
+          description: newStrategy.description || '',
+          type: (newStrategy.marketType || newStrategy.tradingStyle || 'day') as Strategy['type'],
+          symbols: newStrategy.symbols || [],
+          rules: [
+            ...(newStrategy.setupConditions ? [newStrategy.setupConditions] : []),
+            ...(newStrategy.entryRules ? [newStrategy.entryRules] : []),
+            ...(newStrategy.exitRules ? [newStrategy.exitRules] : [])
+          ].filter(rule => rule),
+          riskManagement: {
+            maxRiskPerTrade: parseFloat(newStrategy.maxRisk || '2'),
+            stopLoss: 1,
+            takeProfit: 2,
+            maxDrawdown: parseFloat(newStrategy.drawdownLimit || '10'),
+          },
+          // performance is optional and new strategies don't have performance data yet
+          isActive: true,
+          isPublic: false,
+          tags: newStrategy.tags || [],
+          createdAt: newStrategy.createdAt || new Date().toISOString(),
+          updatedAt: newStrategy.updatedAt || new Date().toISOString(),
+        };
+
+        setStrategies(prev => [strategyToAdd, ...prev]);
+        setSuccess(strategyData.id.includes('clone') ? 'Strategy cloned successfully!' : 'Strategy created successfully!');
+      }
+      
+      // Close modals
+      setShowDetailModal(false);
+      setShowEditModal(false);
+      setSelectedStrategy(null);
+      
+      // ✅ BROADCAST STRATEGY EVENTS FOR REAL-TIME UPDATES
+      console.log('📡 Broadcasting strategy save events...');
+      
+      // Main update event
+      window.dispatchEvent(new CustomEvent('strategiesUpdated', { 
+        detail: { 
+          action: isExistingStrategy ? 'update' : 'create', 
+          strategyId: strategyData.id,
+          timestamp: new Date().toISOString(),
+          source: 'strategies-page'
+        } 
+      }));
+
+      // Strategy saved event
+      window.dispatchEvent(new CustomEvent('strategySaved', { 
+        detail: { 
+          strategyId: strategyData.id,
+          isNew: !isExistingStrategy,
+          timestamp: new Date().toISOString()
+        } 
+      }));
+
+      // Force refresh event
+      window.dispatchEvent(new CustomEvent('forceRefresh', { 
+        detail: { 
+          action: 'strategySaved',
+          strategyId: strategyData.id,
+          timestamp: new Date().toISOString()
+        } 
+      }));
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(null), 3000);
+      
+    } catch (error) {
+      console.error('❌ Error saving strategy:', error);
+      setError(error instanceof Error ? error.message : 'Failed to save strategy');
+    }
+  };
+
+  const handleCreateNew = () => {
+    router.push('/create-strategy');
+  };
+
+  if (loading || !isHydrated) {
+    return <StrategyLibrarySkeleton />;
   }
 
   if (!user) {
-    router.push('/');
     return null;
   }
 
   return (
-    <AppLayout>
-      <div className="w-full">
-        <div className="max-w-6xl mx-auto px-6 py-6">
-          <div className="space-y-6">
-          {/* Beautiful Header Section */}
-          <div className="text-center py-12">
-            <div className="relative inline-block">
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl blur-lg opacity-20"></div>
-              <div className="relative bg-white rounded-3xl p-8 shadow-xl border border-gray-100">
-                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-                  <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+    <ErrorBoundary>
+      <AuthDebug />
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50">
+        {/* Animated Background Elements */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
+          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-yellow-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
+          <div className="absolute top-40 left-40 w-80 h-80 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
+        </div>
+
+        <div className="relative z-10 p-6">
+          {/* Header */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent">
+                  Trading Strategies
+                </h1>
+                <p className="text-gray-600 mt-2">Manage your trading strategies and discover new approaches</p>
+              </div>
+              <button
+                onClick={handleCreateNew}
+                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-700 text-white rounded-xl hover:from-blue-700 hover:to-purple-800 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+              >
+                <div className="flex items-center space-x-2">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
+                  <span>Create Strategy</span>
                 </div>
-                <h1 className="text-4xl font-black text-gray-900 mb-4">Strategy Library</h1>
-                <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">Create, manage, and track your trading strategies with detailed rules, conditions, and performance analytics</p>
-                <button
-                  onClick={() => setIsCreateModalOpen(true)}
-                  className="group relative px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-2xl font-bold transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 flex items-center space-x-3 mx-auto"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-400 rounded-2xl blur opacity-0 group-hover:opacity-50 transition-opacity duration-300"></div>
-                  <svg className="relative w-6 h-6 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  <span className="relative">Create New Strategy</span>
-                </button>
-              </div>
+              </button>
             </div>
           </div>
 
-          {/* Beautiful Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="group relative bg-gradient-to-br from-blue-50 to-blue-100 rounded-3xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-blue-200 hover:scale-105">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-400 to-blue-600 rounded-3xl opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
-              <div className="relative">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
-                    <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                    </svg>
-                  </div>
-                </div>
-                <h3 className="text-sm font-semibold text-blue-700 mb-2">Total Strategies</h3>
-                <p className="text-3xl font-black text-blue-900">{strategies.length}</p>
-                <p className="text-xs text-blue-600 mt-2">Active trading strategies</p>
-              </div>
-            </div>
-
-            <div className="group relative bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-3xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-emerald-200 hover:scale-105">
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-3xl opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
-              <div className="relative">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
-                    <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                    </svg>
-                  </div>
-                </div>
-                <h3 className="text-sm font-semibold text-emerald-700 mb-2">Active Tags</h3>
-                <p className="text-3xl font-black text-emerald-900">{allTags.length}</p>
-                <p className="text-xs text-emerald-600 mt-2">Unique strategy tags</p>
-              </div>
-            </div>
-
-            <div className="group relative bg-gradient-to-br from-purple-50 to-purple-100 rounded-3xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-purple-200 hover:scale-105">
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-400 to-purple-600 rounded-3xl opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
-              <div className="relative">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-                    <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                    </svg>
-                  </div>
-                </div>
-                <h3 className="text-sm font-semibold text-purple-700 mb-2">Markets Covered</h3>
-                <p className="text-3xl font-black text-purple-900">{marketTypes.length}</p>
-                <p className="text-xs text-purple-600 mt-2">Different market types</p>
-              </div>
-            </div>
-
-            <div className="group relative bg-gradient-to-br from-orange-50 to-orange-100 rounded-3xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-orange-200 hover:scale-105">
-              <div className="absolute inset-0 bg-gradient-to-br from-orange-400 to-orange-600 rounded-3xl opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
-              <div className="relative">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg">
-                    <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                    </svg>
-                  </div>
-                </div>
-                <h3 className="text-sm font-semibold text-orange-700 mb-2">Filtered Results</h3>
-                <p className="text-3xl font-black text-orange-900">{filteredStrategies.length}</p>
-                <p className="text-xs text-orange-600 mt-2">Matching your filters</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Beautiful Filters Section */}
-          <div className="relative bg-gradient-to-br from-gray-50 to-white rounded-3xl shadow-xl border border-gray-200 p-8">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 rounded-3xl"></div>
-            <div className="relative">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8">
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-900">Filter & Search</h2>
-                    <p className="text-gray-600">Find the perfect strategy for your trading style</p>
-                  </div>
-                  <div className="hidden sm:block">
-                    <span className="px-4 py-2 bg-gradient-to-r from-blue-100 to-purple-100 text-blue-800 rounded-2xl text-sm font-bold border border-blue-200">
-                      {filteredStrategies.length} of {strategies.length} strategies
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <div className="flex bg-white rounded-2xl p-1 shadow-lg border border-gray-200">
-                    <button
-                      onClick={() => setViewMode('cards')}
-                      className={`px-6 py-3 text-sm font-bold rounded-xl transition-all duration-300 flex items-center space-x-2 ${
-                        viewMode === 'cards'
-                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                      }`}
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14-7H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2z" />
-                      </svg>
-                      <span>Cards</span>
-                    </button>
-                    <button
-                      onClick={() => setViewMode('table')}
-                      className={`px-6 py-3 text-sm font-bold rounded-xl transition-all duration-300 flex items-center space-x-2 ${
-                        viewMode === 'table'
-                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                      }`}
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                      </svg>
-                      <span>Table</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Beautiful Search */}
-                <div className="relative group">
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl blur opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
-                  <div className="relative bg-white rounded-2xl border-2 border-gray-200 group-hover:border-blue-300 transition-colors duration-300 shadow-lg">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <svg className="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                      </svg>
-                    </div>
-                    <input
-                      type="text"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      placeholder="Search strategies..."
-                      className="w-full pl-12 pr-12 py-4 bg-transparent border-0 rounded-2xl focus:outline-none focus:ring-0 text-gray-900 placeholder-gray-500 font-medium"
-                    />
-                    {searchTerm && (
-                      <button
-                        onClick={() => setSearchTerm('')}
-                        className="absolute inset-y-0 right-0 pr-4 flex items-center group"
-                      >
-                        <div className="w-6 h-6 bg-gray-200 hover:bg-red-500 rounded-full flex items-center justify-center transition-colors duration-200">
-                          <svg className="w-3 h-3 text-gray-600 hover:text-white transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </div>
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Beautiful Market Filter */}
-                <div className="relative group">
-                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-blue-600 rounded-2xl blur opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
-                  <div className="relative bg-white rounded-2xl border-2 border-gray-200 group-hover:border-emerald-300 transition-colors duration-300 shadow-lg">
-                    <select
-                      value={filterMarket}
-                      onChange={(e) => setFilterMarket(e.target.value)}
-                      className="w-full px-4 py-4 bg-transparent border-0 rounded-2xl focus:outline-none focus:ring-0 text-gray-900 font-medium appearance-none cursor-pointer"
-                    >
-                      <option value="" className="text-gray-900">🌍 All Markets</option>
-                      {marketTypes.map(market => (
-                        <option key={market} value={market} className="text-gray-900">{market}</option>
-                      ))}
-                    </select>
-                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                      <svg className="w-5 h-5 text-gray-400 group-hover:text-emerald-500 transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Beautiful Tag Filter */}
-                <div className="relative group">
-                  <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-600 rounded-2xl blur opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
-                  <div className="relative bg-white rounded-2xl border-2 border-gray-200 group-hover:border-purple-300 transition-colors duration-300 shadow-lg">
-                    <select
-                      value={filterTag}
-                      onChange={(e) => setFilterTag(e.target.value)}
-                      className="w-full px-4 py-4 bg-transparent border-0 rounded-2xl focus:outline-none focus:ring-0 text-gray-900 font-medium appearance-none cursor-pointer"
-                    >
-                      <option value="" className="text-gray-900">🏷️ All Tags</option>
-                      {allTags.map(tag => (
-                        <option key={tag} value={tag} className="text-gray-900">#{tag}</option>
-                      ))}
-                    </select>
-                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                      <svg className="w-5 h-5 text-gray-400 group-hover:text-purple-500 transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Active Filters */}
-              {(searchTerm || filterMarket || filterTag) && (
-                <div className="mt-6 pt-4 border-t border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-medium text-gray-700">Active filters:</span>
-                      <div className="flex items-center space-x-2">
-                        {searchTerm && (
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                            Search: "{searchTerm}"
-                            <button
-                              onClick={() => setSearchTerm('')}
-                              className="ml-2 inline-flex items-center justify-center w-4 h-4 rounded-full bg-indigo-200 hover:bg-indigo-300"
-                            >
-                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
-                          </span>
-                        )}
-                        {filterMarket && (
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                            Market: {filterMarket}
-                            <button
-                              onClick={() => setFilterMarket('')}
-                              className="ml-2 inline-flex items-center justify-center w-4 h-4 rounded-full bg-purple-200 hover:bg-purple-300"
-                            >
-                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
-                          </span>
-                        )}
-                        {filterTag && (
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-pink-100 text-pink-800">
-                            Tag: #{filterTag}
-                            <button
-                              onClick={() => setFilterTag('')}
-                              className="ml-2 inline-flex items-center justify-center w-4 h-4 rounded-full bg-pink-200 hover:bg-pink-300"
-                            >
-                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setSearchTerm('');
-                        setFilterMarket('');
-                        setFilterTag('');
-                      }}
-                      className="text-sm text-gray-500 hover:text-gray-700 font-medium"
-                    >
-                      Clear all
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Strategies Content */}
-          {filteredStrategies.length === 0 ? (
-            <div className="relative overflow-hidden bg-gradient-to-br from-gray-50 via-white to-indigo-50 rounded-3xl shadow-lg border border-gray-100 p-16 text-center">
-            {/* Background Pattern */}
-            <div className="absolute inset-0 opacity-5">
-              <div className="absolute inset-0" style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%236366f1' fill-opacity='0.1'%3E%3Cpath d='M20 20c0-5.5-4.5-10-10-10s-10 4.5-10 10 4.5 10 10 10 10-4.5 10-10zm10 0c0-5.5-4.5-10-10-10s-10 4.5-10 10 4.5 10 10 10 10-4.5 10-10z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-              }}></div>
-            </div>
-
-            <div className="relative">
-              <div className="w-24 h-24 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-                <svg className="w-12 h-12 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+          {/* Error Display */}
+          {error && (
+            <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4">
+              <div className="flex items-center">
+                <svg className="w-5 h-5 text-red-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
+                <p className="text-red-700 font-medium">{error}</p>
+                <button
+                  onClick={() => setError(null)}
+                  className="ml-auto text-red-500 hover:text-red-700"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Success Display */}
+          {success && (
+            <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-4">
+              <div className="flex items-center">
+                <svg className="w-5 h-5 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-green-700 font-medium">{success}</p>
+                <button
+                  onClick={() => setSuccess(null)}
+                  className="ml-auto text-green-500 hover:text-green-700"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Total Strategies</p>
+                  <p className="text-2xl font-bold text-gray-900">{strategies.length}</p>
+                </div>
+                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Active Strategies</p>
+                  <p className="text-2xl font-bold text-green-600">{strategies.filter(s => s.isActive).length}</p>
+                </div>
+                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Avg Win Rate</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {(strategies.reduce((acc, s) => acc + (s.performance?.winRate || 0), 0) / strategies.length || 0).toFixed(1)}%
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                  <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Total P&L</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    ${strategies.reduce((acc, s) => acc + (s.performance?.profitLoss || 0), 0).toLocaleString()}
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
+                  <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Filters and Controls */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6 mb-8">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+              {/* Search */}
+              <div className="lg:col-span-1">
+                <div className="relative">
+                  <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <input
+                    type="text"
+                    placeholder="Search strategies..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
               </div>
 
-              <h3 className="text-2xl font-bold text-gray-900 mb-3">
-                {strategies.length === 0 ? "No strategies yet" : "No strategies found"}
-              </h3>
-
-              <p className="text-lg text-gray-600 mb-8 max-w-md mx-auto">
-                {strategies.length === 0
-                  ? "Start building your trading strategy library. Create detailed strategies with rules, conditions, and performance tracking."
-                  : "No strategies match your current filters. Try adjusting your search criteria or clearing the filters."
-                }
-              </p>
-
-              {strategies.length === 0 ? (
-                <div className="space-y-4">
-                  <button
-                    onClick={() => setIsCreateModalOpen(true)}
-                    className="group px-8 py-4 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 text-white rounded-2xl font-bold transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 flex items-center justify-center space-x-3 mx-auto"
-                  >
-                    <svg className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                    <span>Create Your First Strategy</span>
-                  </button>
-
-                  <div className="flex items-center justify-center space-x-8 text-sm text-gray-500">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                      <span>Track Performance</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                      <span>Organize Rules</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                      <span>Upload Screenshots</span>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  onClick={() => {
-                    setSearchTerm('');
-                    setFilterMarket('');
-                    setFilterTag('');
-                  }}
-                  className="px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl"
+              {/* Filter by Type */}
+              <div>
+                <select
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  Clear All Filters
+                  <option value="all">All Types</option>
+                  <option value="scalping">Scalping</option>
+                  <option value="swing">Swing Trading</option>
+                  <option value="position">Position Trading</option>
+                  <option value="day">Day Trading</option>
+                  <option value="algorithmic">Algorithmic</option>
+                </select>
+              </div>
+
+              {/* Sort By */}
+              <div>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="updated">Last Updated</option>
+                  <option value="name">Name</option>
+                  <option value="performance">Performance</option>
+                  <option value="winRate">Win Rate</option>
+                  <option value="trades">Total Trades</option>
+                </select>
+              </div>
+
+              {/* View Mode */}
+              <div className="flex rounded-xl border border-gray-200 overflow-hidden">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`flex-1 px-4 py-3 flex items-center justify-center space-x-2 transition-colors ${
+                    viewMode === 'grid' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                  </svg>
+                  <span>Grid</span>
                 </button>
-              )}
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`flex-1 px-4 py-3 flex items-center justify-center space-x-2 transition-colors ${
+                    viewMode === 'list' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                  <span>List</span>
+                </button>
+              </div>
             </div>
+          </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-xl mb-6">
+              {error}
+            </div>
+          )}
+
+          {/* Success Message */}
+          {success && (
+            <div className="bg-green-100 border border-green-300 text-green-700 px-4 py-3 rounded-xl mb-6">
+              {success}
+            </div>
+          )}
+
+          {/* Loading State */}
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="bg-white/80 rounded-2xl p-6 animate-pulse">
+                  <div className="h-6 bg-gray-200 rounded mb-4"></div>
+                  <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                </div>
+              ))}
             </div>
           ) : (
+            /* Strategy Grid/List */
             <div>
-              {viewMode === 'cards' ? (
-                /* Dashboard-style Strategy Cards */
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {filteredStrategies.map((strategy) => (
-                  <div
-                    key={strategy.id}
-                    className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-200 cursor-pointer group"
-                    onClick={() => setSelectedStrategy(strategy)}
-                  >
-                    {/* Clean Card Header */}
-                    <div className="p-6 border-b border-gray-100">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                            <span className="text-blue-600 font-bold text-lg">
-                              {strategy.name.charAt(0)}
-                            </span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-1 truncate group-hover:text-blue-600 transition-colors">
-                              {strategy.name}
-                            </h3>
-                            <div className="flex items-center space-x-2">
-                              <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-md font-medium">
-                                {strategy.marketType}
-                              </span>
-                              <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-md font-medium">
-                                {strategy.timeframe}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        {strategy.usageCount !== undefined && strategy.usageCount > 0 && (
-                          <div className="w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center">
-                            <span className="text-xs font-bold">{strategy.usageCount}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Card Body */}
-                    <div className="p-6">
-                      {/* Setup Conditions Preview */}
-                      <div className="mb-4">
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">Setup Conditions</h4>
-                        <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed">
-                          {strategy.setupConditions}
-                        </p>
-                      </div>
-
-                      {/* Tags */}
-                      {strategy.tags.length > 0 && (
-                        <div className="mb-4">
-                          <div className="flex flex-wrap gap-1">
-                            {strategy.tags.slice(0, 3).map((tag, index) => (
-                              <span
-                                key={index}
-                                className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-md font-medium"
-                              >
-                                #{tag}
-                              </span>
-                            ))}
-                            {strategy.tags.length > 3 && (
-                              <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-md font-medium">
-                                +{strategy.tags.length - 3}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Performance Metrics */}
-                      {(strategy.winRate !== undefined || strategy.totalPnL !== undefined) && (
-                        <div className="mb-4">
-                          <div className="grid grid-cols-2 gap-3">
-                            {strategy.winRate !== undefined && (
-                              <div className="bg-green-50 rounded-lg p-3">
-                                <p className="text-xs text-green-600 font-medium mb-1">Win Rate</p>
-                                <p className="text-lg font-bold text-green-700">{strategy.winRate.toFixed(1)}%</p>
-                              </div>
-                            )}
-                            {strategy.totalPnL !== undefined && (
-                              <div className={`rounded-lg p-3 ${
-                                strategy.totalPnL >= 0
-                                  ? 'bg-green-50'
-                                  : 'bg-red-50'
-                              }`}>
-                                <p className={`text-xs font-medium mb-1 ${
-                                  strategy.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'
-                                }`}>Total P&L</p>
-                                <p className={`text-lg font-bold ${
-                                  strategy.totalPnL >= 0 ? 'text-green-700' : 'text-red-700'
-                                }`}>
-                                  ${strategy.totalPnL >= 0 ? '+' : ''}{strategy.totalPnL.toFixed(2)}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Footer */}
-                      <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                        <div className="flex items-center space-x-2 text-xs text-gray-500">
-                          <span>Updated {new Date(strategy.updatedAt).toLocaleDateString()}</span>
-                        </div>
-
-                        <div className="flex items-center space-x-2">
-                          {strategy.images && strategy.images.length > 0 && (
-                            <div className="flex items-center space-x-1 text-xs text-gray-500">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
-                              <span>{strategy.images.length}</span>
-                            </div>
-                          )}
-
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditStrategy(strategy);
-                            }}
-                            className="w-8 h-8 bg-gray-500 hover:bg-gray-600 rounded-lg flex items-center justify-center transition-colors duration-200"
-                            title="Edit Strategy"
-                          >
-                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          </button>
-
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedStrategy(strategy);
-                            }}
-                            className="w-8 h-8 bg-blue-500 hover:bg-blue-600 rounded-lg flex items-center justify-center transition-colors duration-200"
-                            title="View Strategy Details"
-                          >
-                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+              {filteredStrategies.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
                   </div>
-                ))}
-              </div>
-            ) : (
-              /* Strategy Table View */
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 border-b border-gray-200">
-                      <tr>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          Strategy
-                        </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          Market & Timeframe
-                        </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          Tags
-                        </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          Performance
-                        </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          Last Modified
-                        </th>
-                        <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {filteredStrategies.map((strategy) => (
-                        <tr
-                          key={strategy.id}
-                          className="hover:bg-gray-50 transition-colors cursor-pointer"
-                          onClick={() => setSelectedStrategy(strategy)}
-                        >
-                          <td className="px-6 py-4">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-10 h-10 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center">
-                                <span className="text-white font-bold">
-                                  {strategy.name.charAt(0)}
-                                </span>
-                              </div>
-                              <div>
-                                <p className="text-sm font-semibold text-gray-900">{strategy.name}</p>
-                                <p className="text-xs text-gray-500 line-clamp-1">{strategy.setupConditions}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="space-y-1">
-                              <span className="inline-block px-2 py-1 bg-indigo-100 text-indigo-700 text-xs rounded-full font-medium">
-                                {strategy.marketType}
-                              </span>
-                              <br />
-                              <span className="inline-block px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">
-                                {strategy.timeframe}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex flex-wrap gap-1">
-                              {strategy.tags.slice(0, 2).map((tag, index) => (
-                                <span
-                                  key={index}
-                                  className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-medium"
-                                >
-                                  #{tag}
-                                </span>
-                              ))}
-                              {strategy.tags.length > 2 && (
-                                <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full font-medium">
-                                  +{strategy.tags.length - 2}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="space-y-1">
-                              {strategy.winRate !== undefined && (
-                                <div className="text-xs">
-                                  <span className="text-gray-500">Win Rate: </span>
-                                  <span className="font-semibold text-green-600">{strategy.winRate.toFixed(1)}%</span>
-                                </div>
-                              )}
-                              {strategy.totalPnL !== undefined && (
-                                <div className="text-xs">
-                                  <span className="text-gray-500">P&L: </span>
-                                  <span className={`font-semibold ${
-                                    strategy.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'
-                                  }`}>
-                                    ${strategy.totalPnL >= 0 ? '+' : ''}{strategy.totalPnL.toFixed(2)}
-                                  </span>
-                                </div>
-                              )}
-                              {strategy.usageCount !== undefined && (
-                                <div className="text-xs text-gray-500">
-                                  Used {strategy.usageCount} times
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-500">
-                            {new Date(strategy.updatedAt).toLocaleDateString()}
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            <div className="flex items-center justify-end space-x-2">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedStrategy(strategy);
-                                }}
-                                className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded-lg font-medium transition-colors"
-                              >
-                                View
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEditStrategy(strategy);
-                                }}
-                                className="px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white text-xs rounded-lg font-medium transition-colors"
-                              >
-                                Edit
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">No strategies found</h3>
+                  <p className="text-gray-600 mb-6">Create your first trading strategy or adjust your filters.</p>
+                  <button
+                    onClick={handleCreateNew}
+                    className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-700 text-white rounded-xl hover:from-blue-700 hover:to-purple-800 transition-all"
+                  >
+                    Create Strategy
+                  </button>
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6' : 'space-y-4'}>
+                  {filteredStrategies.map((strategy) => (
+                    viewMode === 'grid' ? (
+                      <StrategyCard
+                        key={strategy.id}
+                        strategy={strategy}
+                        onView={handleViewStrategy}
+                        onEdit={handleEditStrategy}
+                        onDelete={handleDeleteStrategy}
+                        onClone={handleCloneStrategy}
+                      />
+                    ) : (
+                      <div key={strategy.id} className="bg-white/80 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-white/20 hover:shadow-xl transition-all">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-4 flex-1">
+                            <div className={`w-12 h-12 rounded-lg flex items-center justify-center text-white bg-gradient-to-br ${
+                              strategy.type === 'scalping' ? 'from-red-500 to-orange-600' :
+                              strategy.type === 'swing' ? 'from-blue-500 to-indigo-600' :
+                              strategy.type === 'position' ? 'from-green-500 to-emerald-600' :
+                              strategy.type === 'day' ? 'from-yellow-500 to-orange-600' :
+                              strategy.type === 'algorithmic' ? 'from-purple-500 to-pink-600' :
+                              'from-gray-500 to-gray-600'
+                            }`}>
+                              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                              </svg>
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-3">
+                                <h3 className="text-lg font-semibold text-gray-900">{strategy.name}</h3>
+                                <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full capitalize">
+                                  {strategy.type}
+                                </span>
+                                <div className={`w-2 h-2 rounded-full ${strategy.isActive ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                              </div>
+                              <p className="text-sm text-gray-600 mt-1">{strategy.description}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center space-x-6">
+                            {strategy.performance && (
+                              <>
+                                <div className="text-center">
+                                  <p className={`text-lg font-bold ${strategy.performance.winRate >= 50 ? 'text-green-600' : 'text-red-600'}`}>
+                                    {strategy.performance.winRate.toFixed(1)}%
+                                  </p>
+                                  <p className="text-xs text-gray-500">Win Rate</p>
+                                </div>
+                                <div className="text-center">
+                                  <p className={`text-lg font-bold ${strategy.performance.profitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    ${strategy.performance.profitLoss >= 0 ? '+' : ''}{strategy.performance.profitLoss.toFixed(0)}
+                                  </p>
+                                  <p className="text-xs text-gray-500">P&L</p>
+                                </div>
+                                <div className="text-center">
+                                  <p className="text-lg font-bold text-gray-900">{strategy.performance.totalTrades}</p>
+                                  <p className="text-xs text-gray-500">Trades</p>
+                                </div>
+                              </>
+                            )}
+                            
+                            <div className="flex items-center space-x-2">
+                              <button
+                                onClick={() => handleViewStrategy(strategy)}
+                                className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                                title="View Details"
+                              >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => handleEditStrategy(strategy)}
+                                className="p-2 text-gray-400 hover:text-green-600 transition-colors"
+                                title="Edit Strategy"
+                              >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => handleCloneStrategy(strategy)}
+                                className="p-2 text-gray-400 hover:text-purple-600 transition-colors"
+                                title="Clone Strategy"
+                              >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2z" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => handleDeleteStrategy(strategy.id)}
+                                className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                                title="Delete Strategy"
+                              >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  ))}
+                </div>
+              )}
             </div>
           )}
-
-          {/* Create Strategy Modal */}
-          {isCreateModalOpen && (
-            <CreateStrategyModal
-              onClose={() => setIsCreateModalOpen(false)}
-              onSubmit={handleCreateStrategy}
-            />
-          )}
-
-          {/* Edit Strategy Modal */}
-          {isEditModalOpen && strategyToEdit && (
-            <CreateStrategyModal
-              onClose={() => setIsEditModalOpen(false)}
-              onSubmit={handleUpdateStrategy}
-              editStrategy={strategyToEdit}
-              isEditMode={true}
-            />
-          )}
-
-          {/* Strategy Detail Modal */}
-          {selectedStrategy && (
-            <StrategyDetailModal
-              strategy={selectedStrategy}
-              onClose={() => setSelectedStrategy(null)}
-              onDelete={handleDeleteStrategy}
-              onEdit={(strategy) => {
-                handleEditStrategy(strategy);
-              }}
-            />
-          )}
-          </div>
         </div>
+
+        {/* Modals */}
+        {showDetailModal && selectedStrategy && (
+          <StrategyDetailModal
+            isOpen={showDetailModal}
+            onClose={() => {
+              setShowDetailModal(false);
+              setSelectedStrategy(null);
+            }}
+            strategy={selectedStrategy}
+            onClone={handleCloneStrategy}
+            onEdit={handleEditStrategy}
+          />
+        )}
+
+        {showEditModal && (
+          <StrategyEditModal
+            isOpen={showEditModal}
+            onClose={() => {
+              setShowEditModal(false);
+              setSelectedStrategy(null);
+            }}
+            onSave={handleSaveStrategy}
+            strategy={selectedStrategy}
+          />
+        )}
       </div>
-    </AppLayout>
+
+      <style jsx>{`
+        @keyframes blob {
+          0% {
+            transform: translate(0px, 0px) scale(1);
+          }
+          33% {
+            transform: translate(30px, -50px) scale(1.1);
+          }
+          66% {
+            transform: translate(-20px, 20px) scale(0.9);
+          }
+          100% {
+            transform: translate(0px, 0px) scale(1);
+          }
+        }
+        .animate-blob {
+          animation: blob 7s infinite;
+        }
+        .animation-delay-2000 {
+          animation-delay: 2s;
+        }
+        .animation-delay-4000 {
+          animation-delay: 4s;
+        }
+        .line-clamp-2 {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+      `}</style>
+    </ErrorBoundary>
   );
-}
+} 

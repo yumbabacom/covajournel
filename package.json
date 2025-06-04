@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -14,15 +14,24 @@
     "deploy": "npm run build"
   },
   "dependencies": {
+    "@auth0/nextjs-auth0": "^3.5.0",
+    "@google/generative-ai": "^0.24.1",
+    "@heroicons/react": "^2.0.18",
+    "@hookform/resolvers": "^3.3.4",
+    "@next/font": "^14.2.15",
     "@types/bcryptjs": "^2.4.6",
-    "@types/jsonwebtoken": "^9.0.9",
-    "bcryptjs": "^3.0.2",
+    "@types/jsonwebtoken": "^9.0.7",
+    "bcryptjs": "^2.4.3",
+    "framer-motion": "^11.11.17",
     "jsonwebtoken": "^9.0.2",
-    "mongodb": "^6.16.0",
-    "next": "15.3.2",
-    "next-auth": "^4.24.11",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "mongodb": "^6.3.0",
+    "mongoose": "^8.15.1",
+    "next": "^14.2.29",
+    "react": "^18",
+    "react-dom": "^18",
+    "react-hook-form": "^7.53.0",
+    "recharts": "^2.13.3",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

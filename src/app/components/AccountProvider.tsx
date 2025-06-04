@@ -10,6 +10,7 @@ export interface Account {
   initialBalance: number;
   currentBalance: number;
   isDefault: boolean;
+  tag?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -19,7 +20,7 @@ interface AccountContextType {
   selectedAccount: Account | null;
   isLoading: boolean;
   selectAccount: (accountId: string) => void;
-  createAccount: (name: string, initialBalance: number) => Promise<Account>;
+  createAccount: (name: string, initialBalance: number, tag?: string) => Promise<Account>;
   updateAccount: (accountId: string, updates: Partial<Account>) => Promise<Account>;
   deleteAccount: (accountId: string) => Promise<void>;
   refreshAccounts: () => Promise<void>;
@@ -45,6 +46,7 @@ export function AccountProvider({ children }: AccountProviderProps) {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false);
 
   // Fetch accounts when user changes
   useEffect(() => {
@@ -56,36 +58,89 @@ export function AccountProvider({ children }: AccountProviderProps) {
     }
   }, [user]);
 
-  // Auto-select account when accounts are loaded
+  // Auto-select first account when accounts are loaded
   useEffect(() => {
     if (accounts.length > 0 && !selectedAccount) {
-      // First try to restore from localStorage
+      // Try to restore previously selected account from localStorage
       const savedAccountId = localStorage.getItem('selectedAccountId');
-      let accountToSelect = null;
-
       if (savedAccountId) {
-        accountToSelect = accounts.find(acc => acc.id === savedAccountId);
+        const savedAccount = accounts.find(acc => acc.id === savedAccountId);
+        if (savedAccount) {
+          setSelectedAccount(savedAccount);
+          return;
+        }
       }
-
-      // If no saved account or saved account not found, use default or first account
-      if (!accountToSelect) {
-        accountToSelect = accounts.find(acc => acc.isDefault) || accounts[0];
-      }
-
-      if (accountToSelect) {
-        setSelectedAccount(accountToSelect);
-        // Update localStorage with the selected account
-        localStorage.setItem('selectedAccountId', accountToSelect.id);
-      }
+      
+      // If no saved account or saved account not found, select first account
+      const defaultAccount = accounts.find(acc => acc.isDefault) || accounts[0];
+      setSelectedAccount(defaultAccount);
+      localStorage.setItem('selectedAccountId', defaultAccount.id);
     }
   }, [accounts, selectedAccount]);
 
-  const fetchAccounts = async () => {
-    if (!user) return;
+  // ✅ ADD EVENT LISTENERS FOR TRADE DELETION AND ACCOUNT BALANCE UPDATES
+  useEffect(() => {
+    const handleAccountBalanceRecalculate = async (event: Event) => {
+      const customEvent = event as CustomEvent;
+      console.log('💰 AccountProvider: Account balance recalculate event received', customEvent.detail);
+      try {
+        if (customEvent.detail.accountId && selectedAccount?.id === customEvent.detail.accountId) {
+          console.log('💰 Refreshing account data due to trade deletion');
+          await refreshAccounts();
+        }
+      } catch (error) {
+        console.error('Failed to refresh accounts after trade deletion:', error);
+      }
+    };
 
+    const handleTradeDeleted = async (event: Event) => {
+      const customEvent = event as CustomEvent;
+      console.log('💰 AccountProvider: Trade deleted event received', customEvent.detail);
+      try {
+        // Refresh all accounts to ensure balance consistency
+        await refreshAccounts();
+      } catch (error) {
+        console.error('Failed to refresh accounts after trade deletion:', error);
+      }
+    };
+
+    const handleForceRefresh = async (event: Event) => {
+      const customEvent = event as CustomEvent;
+      console.log('💰 AccountProvider: Force refresh event received', customEvent.detail);
+      if (customEvent.detail.action === 'tradeDeleted') {
+        try {
+          await refreshAccounts();
+        } catch (error) {
+          console.error('Failed to refresh accounts during force refresh:', error);
+        }
+      }
+    };
+
+    // Add event listeners
+    window.addEventListener('accountBalanceRecalculate', handleAccountBalanceRecalculate);
+    window.addEventListener('tradeDeleted', handleTradeDeleted);
+    window.addEventListener('forceRefresh', handleForceRefresh);
+
+    // Cleanup event listeners
+    return () => {
+      window.removeEventListener('accountBalanceRecalculate', handleAccountBalanceRecalculate);
+      window.removeEventListener('tradeDeleted', handleTradeDeleted);
+      window.removeEventListener('forceRefresh', handleForceRefresh);
+    };
+  }, [selectedAccount]);
+
+  const fetchAccounts = async () => {
     setIsLoading(true);
     try {
       const token = localStorage.getItem('token');
+      if (!token) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('No token found, user not authenticated');
+        }
+        setIsLoading(false);
+        return;
+      }
+
       const response = await fetch('/api/accounts', {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -102,11 +157,20 @@ export function AccountProvider({ children }: AccountProviderProps) {
         }
 
         setAccounts(data.accounts);
+      } else if (response.status === 401) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Token expired or invalid, user needs to login again');
+        }
+        // Don't show error for authentication issues
       } else {
-        console.error('Failed to fetch accounts');
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Failed to fetch accounts');
+        }
       }
     } catch (error) {
-      console.error('Error fetching accounts:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error fetching accounts:', error);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -115,6 +179,11 @@ export function AccountProvider({ children }: AccountProviderProps) {
   const createDefaultAccount = async () => {
     try {
       const token = localStorage.getItem('token');
+      if (!token) {
+        console.log('No token found, cannot create default account');
+        return;
+      }
+
       const response = await fetch('/api/accounts/migrate', {
         method: 'POST',
         headers: {
@@ -125,6 +194,8 @@ export function AccountProvider({ children }: AccountProviderProps) {
       if (response.ok) {
         // Fetch accounts again after creating default account
         await fetchAccounts();
+      } else if (response.status === 401) {
+        console.log('Token expired or invalid, cannot create default account');
       }
     } catch (error) {
       console.error('Error creating default account:', error);
@@ -144,7 +215,7 @@ export function AccountProvider({ children }: AccountProviderProps) {
     }
   };
 
-  const createAccount = async (name: string, initialBalance: number): Promise<Account> => {
+  const createAccount = async (name: string, initialBalance: number, tag?: string): Promise<Account> => {
     if (!user) throw new Error('User not authenticated');
 
     const token = localStorage.getItem('token');
@@ -154,7 +225,7 @@ export function AccountProvider({ children }: AccountProviderProps) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
       },
-      body: JSON.stringify({ name, initialBalance }),
+      body: JSON.stringify({ name, initialBalance, tag }),
     });
 
     if (!response.ok) {

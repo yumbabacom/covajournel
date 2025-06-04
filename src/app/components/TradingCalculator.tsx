@@ -219,17 +219,41 @@ export default function TradingCalculator({
   const getCategoryIcon = (category: string) => {
     switch (category) {
       case 'Forex':
-        return '💱';
+        return (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+          </svg>
+        );
       case 'Commodities':
-        return '🥇';
+        return (
+          <svg className="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.293l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13a1 1 0 102 0V9.414l1.293 1.293a1 1 0 001.414-1.414z" clipRule="evenodd" />
+          </svg>
+        );
       case 'Stocks':
-        return '📈';
+        return (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+          </svg>
+        );
       case 'Indices':
-        return '📊';
+        return (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+        );
       case 'Crypto':
-        return '₿';
+        return (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+          </svg>
+        );
       default:
-        return '🌐';
+        return (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        );
     }
   };
 
@@ -362,69 +386,90 @@ export default function TradingCalculator({
 
   return (
     <div className="relative max-w-7xl mx-auto">
-      {/* Background decoration */}
-      <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-indigo-500/5 rounded-3xl blur-xl"></div>
+      {/* Enhanced Background Effects */}
+      <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 rounded-3xl blur opacity-20 animate-pulse"></div>
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 via-white to-indigo-50/50 rounded-3xl"></div>
 
-      <div className="relative bg-white/95 dark:bg-gray-800/95 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/30 dark:border-gray-700/30 p-8 lg:p-12 transition-all duration-500 hover:shadow-3xl">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 rounded-2xl shadow-lg shadow-blue-500/25 mb-6">
-            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-            </svg>
+      <div className="relative bg-white/95 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/20 p-8 lg:p-12 transition-all duration-500 hover:shadow-3xl">
+        {/* Enhanced Header */}
+        <div className="text-center mb-16">
+          <div className="relative mb-8">
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/30 to-purple-500/30 rounded-full blur-2xl animate-pulse"></div>
+            <div className="relative inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 rounded-full shadow-2xl shadow-blue-500/40 transform hover:scale-110 transition-all duration-500 group">
+              <div className="absolute inset-2 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full opacity-60 group-hover:opacity-80 transition-opacity duration-500"></div>
+              <svg className="relative w-12 h-12 text-white group-hover:scale-110 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+            </div>
           </div>
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-indigo-800 dark:from-white dark:via-blue-200 dark:to-indigo-200 bg-clip-text text-transparent mb-3">
+          <h2 className="text-4xl md:text-5xl font-black bg-gradient-to-r from-gray-900 via-blue-800 to-indigo-800 bg-clip-text text-transparent mb-4 leading-tight">
             Professional Trading Calculator
           </h2>
-          <p className="text-gray-600 dark:text-gray-400 text-lg">
-            Calculate your position size, risk, and potential returns with precision
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
+            Calculate position sizes, manage risk, and analyze potential profits with
+            <span className="font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> lightning-fast precision</span>
           </p>
+
+          {/* Decorative Line */}
+          <div className="flex items-center justify-center space-x-4 mt-6">
+            <div className="h-1 w-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"></div>
+            <div className="h-2 w-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full animate-pulse"></div>
+            <div className="h-1 w-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"></div>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-12">
-        {/* Input Section */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-16">
+        {/* Enhanced Input Section */}
         <div className="space-y-8">
           <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-2xl blur-xl"></div>
-            <div className="relative bg-white/60 dark:bg-gray-800/60 backdrop-blur-xl rounded-2xl p-8 border border-white/30 dark:border-gray-700/30">
-              <div className="flex items-center space-x-3 mb-8">
-                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
-                  </svg>
+            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 rounded-3xl blur opacity-20"></div>
+            <div className="relative bg-white/90 backdrop-blur-2xl rounded-3xl p-10 border border-white/20 shadow-2xl">
+              <div className="flex items-center space-x-4 mb-10">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500/30 to-indigo-500/30 rounded-2xl blur-lg"></div>
+                  <div className="relative w-14 h-14 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-2xl flex items-center justify-center shadow-xl shadow-blue-500/30">
+                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
+                    </svg>
+                  </div>
                 </div>
-                <h3 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
-                  Trading Parameters
-                </h3>
+                <div>
+                  <h3 className="text-3xl font-black bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                    Trading Parameters
+                  </h3>
+                  <p className="text-gray-600 font-medium">Configure your trade settings</p>
+                </div>
               </div>
 
-              <div className="space-y-6">
+              <div className="space-y-8">
 
-              {/* Account Size */}
+              {/* Enhanced Account Size */}
               <div className="group">
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-4 flex items-center space-x-3">
-                  <div className="w-3 h-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full shadow-sm"></div>
-                  <span>Account Size ($)</span>
+                <label className="block text-lg font-bold text-gray-700 mb-4 flex items-center space-x-3 group-focus-within:text-blue-600 transition-colors duration-200">
+                  <div className="w-4 h-4 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full shadow-lg group-focus-within:scale-125 transition-transform duration-200"></div>
+                  <span>Account Size</span>
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <span className="text-gray-500 dark:text-gray-400 text-lg font-semibold">$</span>
+                  <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
+                    <div className="w-8 h-8 bg-gradient-to-r from-blue-100 to-blue-200 rounded-xl flex items-center justify-center group-focus-within:from-blue-500 group-focus-within:to-blue-600 transition-all duration-200">
+                      <span className="text-blue-600 group-focus-within:text-white text-lg font-bold">$</span>
+                    </div>
                   </div>
                   <input
                     type="number"
                     value={accountSize}
                     onChange={(e) => setAccountSize(e.target.value)}
-                    className="w-full pl-10 pr-4 py-4 bg-white/70 dark:bg-gray-700/70 border border-gray-200 dark:border-gray-600 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 dark:text-white transition-all duration-300 hover:shadow-md hover:border-blue-300 dark:hover:border-blue-600 text-lg font-medium backdrop-blur-sm"
-                    placeholder="10000"
+                    className="w-full pl-20 pr-6 py-5 bg-gradient-to-r from-gray-50 to-gray-100 border-2 border-gray-200 rounded-2xl shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all duration-300 hover:shadow-xl hover:border-blue-300 text-xl font-semibold placeholder-gray-400"
+                    placeholder="10,000"
                   />
                 </div>
               </div>
 
-              {/* Risk Percentage */}
+              {/* Enhanced Risk Percentage */}
               <div className="group">
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-4 flex items-center space-x-3">
-                  <div className="w-3 h-3 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full shadow-sm"></div>
-                  <span>Risk Percentage (%)</span>
+                <label className="block text-lg font-bold text-gray-700 mb-4 flex items-center space-x-3 group-focus-within:text-purple-600 transition-colors duration-200">
+                  <div className="w-4 h-4 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full shadow-lg group-focus-within:scale-125 transition-transform duration-200"></div>
+                  <span>Risk Percentage</span>
                 </label>
                 <div className="relative">
                   <input
@@ -432,88 +477,121 @@ export default function TradingCalculator({
                     step="0.1"
                     value={riskPercentage}
                     onChange={(e) => setRiskPercentage(e.target.value)}
-                    className="w-full px-4 py-4 bg-white/70 dark:bg-gray-700/70 border border-gray-200 dark:border-gray-600 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 dark:text-white transition-all duration-300 hover:shadow-md hover:border-purple-300 dark:hover:border-purple-600 text-lg font-medium backdrop-blur-sm"
-                    placeholder="2"
+                    className="w-full pl-6 pr-20 py-5 bg-gradient-to-r from-gray-50 to-gray-100 border-2 border-gray-200 rounded-2xl shadow-lg focus:outline-none focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 focus:bg-white transition-all duration-300 hover:shadow-xl hover:border-purple-300 text-xl font-semibold placeholder-gray-400"
+                    placeholder="2.0"
                   />
-                  <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                    <span className="text-gray-500 dark:text-gray-400 text-lg font-semibold">%</span>
+                  <div className="absolute inset-y-0 right-0 pr-6 flex items-center pointer-events-none">
+                    <div className="w-8 h-8 bg-gradient-to-r from-purple-100 to-purple-200 rounded-xl flex items-center justify-center group-focus-within:from-purple-500 group-focus-within:to-purple-600 transition-all duration-200">
+                      <span className="text-purple-600 group-focus-within:text-white text-lg font-bold">%</span>
+                    </div>
                   </div>
                 </div>
               </div>
 
-          {/* Trading Pair */}
+          {/* Enhanced Trading Pair */}
           <div className="group">
-            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center space-x-2">
-              <span className="w-2 h-2 bg-indigo-500 rounded-full"></span>
+            <label className="block text-lg font-bold text-gray-700 mb-4 flex items-center space-x-3 group-focus-within:text-indigo-600 transition-colors duration-200">
+              <div className="w-4 h-4 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full shadow-lg group-focus-within:scale-125 transition-transform duration-200"></div>
               <span>Trading Pair</span>
             </label>
             <div className="relative">
               <button
                 onClick={() => setIsModalOpen(true)}
-                className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 dark:bg-gray-700/50 dark:text-white transition-all duration-200 hover:border-gray-300 dark:hover:border-gray-500 backdrop-blur-sm text-left flex items-center justify-between"
+                className="w-full px-6 py-5 bg-gradient-to-r from-gray-50 to-gray-100 border-2 border-gray-200 rounded-2xl shadow-lg focus:outline-none focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white transition-all duration-300 hover:shadow-xl hover:border-indigo-300 text-left flex items-center justify-between group"
               >
-                <div className="flex items-center space-x-3">
-                  <span className="text-lg">{getCategoryIcon(tradingPairs.find(p => p.symbol === selectedPair)?.category || 'Forex')}</span>
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-gradient-to-r from-indigo-100 to-indigo-200 rounded-xl flex items-center justify-center text-2xl group-hover:from-indigo-500 group-hover:to-indigo-600 transition-all duration-200">
+                    {getCategoryIcon(tradingPairs.find(p => p.symbol === selectedPair)?.category || 'Forex')}
+                  </div>
                   <div>
-                    <div className="font-semibold">{selectedPair}</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                    <div className="text-xl font-bold text-gray-900">{selectedPair}</div>
+                    <div className="text-sm text-gray-500 font-medium">
                       {tradingPairs.find(p => p.symbol === selectedPair)?.name}
                     </div>
                   </div>
                 </div>
-                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
-                </svg>
+                <div className="w-10 h-10 bg-gradient-to-r from-indigo-100 to-indigo-200 rounded-xl flex items-center justify-center group-hover:from-indigo-500 group-hover:to-indigo-600 transition-all duration-200">
+                  <svg className="w-5 h-5 text-indigo-600 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
+                  </svg>
+                </div>
               </button>
             </div>
           </div>
 
-          {/* Entry Price */}
+          {/* Enhanced Entry Price */}
           <div className="group">
-            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center space-x-2">
-              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+            <label className="block text-lg font-bold text-gray-700 mb-4 flex items-center space-x-3 group-focus-within:text-green-600 transition-colors duration-200">
+              <div className="w-4 h-4 bg-gradient-to-r from-green-500 to-green-600 rounded-full shadow-lg group-focus-within:scale-125 transition-transform duration-200"></div>
               <span>Entry Price</span>
             </label>
-            <input
-              type="number"
-              step="0.00001"
-              value={entryPrice}
-              onChange={(e) => setEntryPrice(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500 dark:bg-gray-700/50 dark:text-white transition-all duration-200 hover:border-gray-300 dark:hover:border-gray-500 backdrop-blur-sm"
-              placeholder="1.1000"
-            />
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
+                <div className="w-8 h-8 bg-gradient-to-r from-green-100 to-green-200 rounded-xl flex items-center justify-center group-focus-within:from-green-500 group-focus-within:to-green-600 transition-all duration-200">
+                  <svg className="w-4 h-4 text-green-600 group-focus-within:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
+                  </svg>
+                </div>
+              </div>
+              <input
+                type="number"
+                step="0.00001"
+                value={entryPrice}
+                onChange={(e) => setEntryPrice(e.target.value)}
+                className="w-full pl-20 pr-6 py-5 bg-gradient-to-r from-gray-50 to-gray-100 border-2 border-gray-200 rounded-2xl shadow-lg focus:outline-none focus:ring-4 focus:ring-green-500/20 focus:border-green-500 focus:bg-white transition-all duration-300 hover:shadow-xl hover:border-green-300 text-xl font-semibold placeholder-gray-400"
+                placeholder="1.10000"
+              />
+            </div>
           </div>
 
-          {/* Exit Price */}
+          {/* Enhanced Exit Price */}
           <div className="group">
-            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center space-x-2">
-              <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
+            <label className="block text-lg font-bold text-gray-700 mb-4 flex items-center space-x-3 group-focus-within:text-emerald-600 transition-colors duration-200">
+              <div className="w-4 h-4 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full shadow-lg group-focus-within:scale-125 transition-transform duration-200"></div>
               <span>Exit Price (Take Profit)</span>
             </label>
-            <input
-              type="number"
-              step="0.00001"
-              value={exitPrice}
-              onChange={(e) => setExitPrice(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 dark:bg-gray-700/50 dark:text-white transition-all duration-200 hover:border-gray-300 dark:hover:border-gray-500 backdrop-blur-sm"
-              placeholder="1.1100"
-            />
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
+                <div className="w-8 h-8 bg-gradient-to-r from-emerald-100 to-emerald-200 rounded-xl flex items-center justify-center group-focus-within:from-emerald-500 group-focus-within:to-emerald-600 transition-all duration-200">
+                  <svg className="w-4 h-4 text-emerald-600 group-focus-within:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                  </svg>
+                </div>
+              </div>
+              <input
+                type="number"
+                step="0.00001"
+                value={exitPrice}
+                onChange={(e) => setExitPrice(e.target.value)}
+                className="w-full pl-20 pr-6 py-5 bg-gradient-to-r from-gray-50 to-gray-100 border-2 border-gray-200 rounded-2xl shadow-lg focus:outline-none focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 focus:bg-white transition-all duration-300 hover:shadow-xl hover:border-emerald-300 text-xl font-semibold placeholder-gray-400"
+                placeholder="1.11000"
+              />
+            </div>
           </div>
 
-              {/* Stop Loss */}
+              {/* Enhanced Stop Loss */}
               <div className="group">
-                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-4 flex items-center space-x-3">
-                  <div className="w-3 h-3 bg-gradient-to-r from-red-500 to-red-600 rounded-full shadow-sm"></div>
-                  <span>Stop Loss</span>
+                <label className="block text-lg font-bold text-gray-700 mb-4 flex items-center space-x-3 group-focus-within:text-red-600 transition-colors duration-200">
+                  <div className="w-4 h-4 bg-gradient-to-r from-red-500 to-red-600 rounded-full shadow-lg group-focus-within:scale-125 transition-transform duration-200"></div>
+                  <span>Stop Loss Price</span>
                 </label>
-                <input
-                  type="number"
-                  step="0.00001"
-                  value={stopLoss}
-                  onChange={(e) => setStopLoss(e.target.value)}
-                  className="w-full px-4 py-4 bg-white/70 dark:bg-gray-700/70 border border-gray-200 dark:border-gray-600 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500 dark:text-white transition-all duration-300 hover:shadow-md hover:border-red-300 dark:hover:border-red-600 text-lg font-medium backdrop-blur-sm"
-                  placeholder="1.0950"
-                />
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
+                    <div className="w-8 h-8 bg-gradient-to-r from-red-100 to-red-200 rounded-xl flex items-center justify-center group-focus-within:from-red-500 group-focus-within:to-red-600 transition-all duration-200">
+                      <svg className="w-4 h-4 text-red-600 group-focus-within:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 13l-5 5m0 0l-5-5m5 5V6" />
+                      </svg>
+                    </div>
+                  </div>
+                  <input
+                    type="number"
+                    step="0.00001"
+                    value={stopLoss}
+                    onChange={(e) => setStopLoss(e.target.value)}
+                    className="w-full pl-20 pr-6 py-5 bg-gradient-to-r from-gray-50 to-gray-100 border-2 border-gray-200 rounded-2xl shadow-lg focus:outline-none focus:ring-4 focus:ring-red-500/20 focus:border-red-500 focus:bg-white transition-all duration-300 hover:shadow-xl hover:border-red-300 text-xl font-semibold placeholder-gray-400"
+                    placeholder="1.09500"
+                  />
+                </div>
               </div>
               </div>
             </div>
@@ -541,12 +619,21 @@ export default function TradingCalculator({
               ? 'bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-300 dark:border-green-700 shadow-green-100 dark:shadow-green-900/20'
               : 'bg-gradient-to-r from-red-50 to-rose-50 dark:from-red-900/20 dark:to-rose-900/20 border-red-300 dark:border-red-700 shadow-red-100 dark:shadow-red-900/20'} shadow-lg`}>
               <div className="flex items-center justify-center space-x-3">
-                <div className={`w-3 h-3 rounded-full ${parseFloat(exitPrice) > parseFloat(entryPrice) ? 'bg-green-500' : 'bg-red-500'} animate-pulse`}></div>
-                <span className={`text-lg font-bold ${parseFloat(exitPrice) > parseFloat(entryPrice)
-                  ? 'text-green-800 dark:text-green-300'
-                  : 'text-red-800 dark:text-red-300'}`}>
-                  {parseFloat(exitPrice) > parseFloat(entryPrice) ? '📈 LONG POSITION' : '📉 SHORT POSITION'}
-                </span>
+                {parseFloat(exitPrice) > parseFloat(entryPrice) ? (
+                  <div className="flex items-center space-x-2">
+                    <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
+                    <span>LONG POSITION</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-2">
+                    <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
+                    </svg>
+                    <span>SHORT POSITION</span>
+                  </div>
+                )}
               </div>
             </div>
           )}

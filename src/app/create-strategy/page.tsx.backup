@@ -1,0 +1,1443 @@
+﻿'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '../components/AuthProvider';
+
+export default function CreateStrategyDashboard() {
+  const { user } = useAuth();
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState('overview');
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    marketType: '',
+    setupConditions: '',
+    entryRules: '',
+    exitRules: '',
+    riskManagement: '',
+    timeframe: '',
+    tradingStyle: '',
+    complexity: 'Intermediate',
+    expectedDrawdown: '',
+    minCapital: '',
+    sessionTiming: '',
+    indicators: '',
+    tags: '',
+    winRate: '',
+    maxRisk: '2',
+    profitTarget: '',
+    avgHoldTime: '',
+    monthlyTarget: '',
+    backtestPeriod: '',
+    sharpeRatio: '',
+    maxConsecutiveLosses: '',
+    // New advanced fields
+    stopLossType: 'percentage',
+    takeProfitType: 'ratio',
+    positionSizing: 'fixed',
+    maxPositions: '3',
+    correlationLimit: '0.7',
+    drawdownLimit: '15',
+    volatilityFilter: 'medium',
+    newsFilter: true,
+    marketHours: 'any',
+    minVolume: '',
+    maxSpread: '',
+    backtestStartDate: '',
+    backtestEndDate: '',
+    commission: '0.1',
+    slippage: '0.05'
+  });
+  const [images, setImages] = useState<File[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<any>({});
+  const [isLoadingAI, setIsLoadingAI] = useState(false);
+
+  // Mock data for dashboard features
+  const [marketData, setMarketData] = useState({
+    volatility: '12.5%',
+    trend: 'Bullish',
+    volume: 'High',
+    sentiment: 'Positive'
+  });
+
+  const strategyTemplates = [
+    {
+      id: 'scalping',
+      name: 'Scalping Master',
+      description: 'High-frequency scalping strategy for quick profits',
+      popularity: 95,
+      winRate: 78,
+      riskReward: '1:1.5'
+    },
+    {
+      id: 'swing',
+      name: 'Swing Trader Pro',
+      description: 'Medium-term swing trading with trend analysis',
+      popularity: 87,
+      winRate: 65,
+      riskReward: '1:2.5'
+    },
+    {
+      id: 'breakout',
+      name: 'Breakout Hunter',
+      description: 'Momentum-based breakout strategy',
+      popularity: 82,
+      winRate: 68,
+      riskReward: '1:2'
+    }
+  ];
+
+  const dashboardTabs = [
+    { id: 'overview', name: 'Strategy Overview', icon: 'ðŸ"‹' },
+    { id: 'rules', name: 'Trading Rules', icon: 'âš¡' },
+    { id: 'risk', name: 'Risk Management', icon: 'ðŸ›¡ï¸' },
+    { id: 'advanced', name: 'Advanced Settings', icon: 'âš™ï¸' },
+    { id: 'backtest', name: 'Backtest Setup', icon: 'ðŸ"ˆ' },
+    { id: 'optimization', name: 'AI Optimization', icon: 'ðŸ¤–' },
+    { id: 'review', name: 'Final Review', icon: 'âœ…' }
+  ];
+
+  const marketTypes = ['Forex', 'Stocks', 'Crypto', 'Options', 'Futures', 'Commodities', 'Indices', 'Bonds', 'ETFs', 'CFDs'];
+  const timeframes = ['1min', '5min', '15min', '30min', '1H', '2H', '4H', '6H', '8H', '12H', '1D', '1W', '1M'];
+  const tradingStyles = ['Scalping', 'Day Trading', 'Swing Trading', 'Position Trading', 'News Trading', 'Algorithmic', 'High Frequency'];
+  const complexityLevels = ['Beginner', 'Intermediate', 'Advanced', 'Expert'];
+  const sessionTimings = ['Asian Session', 'European Session', 'New York Session', 'London Session', 'Overlap Sessions', '24/7', 'Custom'];
+
+  const popularIndicators = [
+    'RSI', 'MACD', 'Moving Average', 'Bollinger Bands', 'Stochastic', 'ATR', 'Volume',
+    'Support/Resistance', 'Fibonacci', 'Ichimoku', 'CCI', 'Williams %R', 'ADX', 'Parabolic SAR'
+  ];
+
+  const popularTags = [
+    'Breakout', 'Scalping', 'Swing Trading', 'Trend Following', 'Mean Reversion', 'Momentum',
+    'Counter Trend', 'News Trading', 'Pattern Trading', 'Reversal', 'Grid Trading', 'Martingale'
+  ];
+
+  useEffect(() => {
+    if (!user) {
+      router.push('/login');
+    }
+  }, [user, router]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    const inputValue = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
+    setFormData(prev => ({ ...prev, [name]: inputValue }));
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const applyTemplate = (templateId: string) => {
+    const templates = {
+      scalping: {
+        name: 'Scalping Master Strategy',
+        tradingStyle: 'Scalping',
+        timeframe: '1min',
+        maxRisk: '1',
+        profitTarget: '1.5',
+        winRate: '78',
+        setupConditions: 'High volume candles with tight spreads during active market hours',
+        entryRules: 'Enter on breakout of 5-minute range with RSI confirmation',
+        exitRules: 'Exit at 1.5R or after 15 minutes maximum hold time'
+      },
+      swing: {
+        name: 'Swing Trader Pro Strategy',
+        tradingStyle: 'Swing Trading',
+        timeframe: '4H',
+        maxRisk: '2',
+        profitTarget: '2.5',
+        winRate: '65',
+        setupConditions: 'Clear trend with pullback to key support/resistance levels',
+        entryRules: 'Enter on trend continuation after pullback with MACD confirmation',
+        exitRules: 'Exit at swing high/low or 2.5R target'
+      },
+      breakout: {
+        name: 'Breakout Hunter Strategy',
+        tradingStyle: 'Day Trading',
+        timeframe: '15min',
+        maxRisk: '1.5',
+        profitTarget: '2',
+        winRate: '68',
+        setupConditions: 'Consolidation pattern with decreasing volume',
+        entryRules: 'Enter on volume breakout above/below consolidation range',
+        exitRules: 'Exit at pattern target or trail stop at 50% of profit'
+      }
+    };
+    
+    const template = templates[templateId as keyof typeof templates];
+    if (template) {
+      setFormData(prev => ({ ...prev, ...template }));
+      setSelectedTemplate(templateId);
+    }
+  };
+
+  const addSuggestion = (field: 'indicators' | 'tags', suggestion: string) => {
+    const currentValue = formData[field];
+    const items = currentValue ? currentValue.split(',').map((item: string) => item.trim()) : [];
+    if (!items.includes(suggestion)) {
+      const newValue = items.length > 0 ? `${currentValue}, ${suggestion}` : suggestion;
+      setFormData(prev => ({ ...prev, [field]: newValue }));
+    }
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newImages = Array.from(e.target.files);
+      setImages(prev => [...prev, ...newImages]);
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setImages(prev => prev.filter((_: File, i: number) => i !== index));
+  };
+
+  const calculateRiskScore = () => {
+    const risk = parseFloat(formData.maxRisk) || 2;
+    const winRate = parseFloat(formData.winRate) || 65;
+    const rr = parseFloat(formData.profitTarget) || 2;
+    
+    const expectancy = (winRate / 100) * rr - ((100 - winRate) / 100);
+    
+    if (expectancy > 0.5) return { score: 95, label: 'Excellent', color: 'green' };
+    if (expectancy > 0.3) return { score: 80, label: 'Good', color: 'blue' };
+    if (expectancy > 0.1) return { score: 65, label: 'Average', color: 'yellow' };
+    return { score: 40, label: 'Poor', color: 'red' };
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    
+    try {
+      const imagePromises = images.map((image: File) => {
+        return new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.readAsDataURL(image);
+        });
+      });
+
+      const imageUrls = await Promise.all(imagePromises);
+      const strategyData = {
+        ...formData,
+        indicators: formData.indicators.split(',').map((i: string) => i.trim()).filter((i: string) => i),
+        tags: formData.tags.split(',').map((t: string) => t.trim()).filter((t: string) => t),
+        images: imageUrls,
+      };
+
+      const response = await fetch('/api/strategies', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(strategyData),
+      });
+
+      if (response.ok) {
+        router.push('/strategies?created=true');
+      } else {
+        throw new Error('Failed to create strategy');
+      }
+    } catch (error) {
+      console.error('Error creating strategy:', error);
+      alert('Failed to create strategy. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // AI suggestions function
+  const getAISuggestions = async () => {
+    setIsLoadingAI(true);
+    try {
+      const response = await fetch('/api/ai/suggestions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          strategy: formData,
+          marketConditions: marketData
+        }),
+      });
+      
+      if (response.ok) {
+        const suggestions = await response.json();
+        setAiSuggestions(suggestions);
+      }
+    } catch (error) {
+      console.error('Error getting AI suggestions:', error);
+    } finally {
+      setIsLoadingAI(false);
+    }
+  };
+
+  if (!user) {
+    return null;
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      {/* Dashboard Header */}
+      <div className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-40">
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => router.back()}
+                className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all duration-200"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                <span>Back to Strategies</span>
+              </button>
+              
+              <div className="h-8 w-px bg-gray-300"></div>
+              
+              <div>
+                <h1 className="text-3xl font-black bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  Strategy Creator Dashboard
+                </h1>
+                <p className="text-sm text-gray-600">Build, test, and optimize your trading strategies</p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-4">
+              {/* Live Market Data Widget */}
+              <div className="hidden lg:flex items-center space-x-4 bg-gradient-to-r from-emerald-50 to-teal-50 px-4 py-2 rounded-xl border border-emerald-200">
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <span className="text-sm font-medium text-gray-700">Market: {marketData.trend}</span>
+                </div>
+                <div className="text-sm text-gray-600">VIX: {marketData.volatility}</div>
+              </div>
+              
+              <button
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                  showAdvanced 
+                    ? 'bg-purple-600 text-white shadow-lg' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Advanced Mode
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex h-[calc(100vh-80px)]">
+        {/* Sidebar Navigation */}
+        <div className="w-80 bg-white border-r border-gray-200 shadow-lg">
+          <div className="p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Dashboard Sections</h3>
+            <nav className="space-y-2">
+              {dashboardTabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                    activeTab === tab.id
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <span className="text-xl">{tab.icon}</span>
+                  <span className="font-medium">{tab.name}</span>
+                </button>
+              ))}
+            </nav>
+          </div>
+
+          {/* Strategy Templates */}
+          <div className="p-6 border-t border-gray-200">
+            <h4 className="text-lg font-bold text-gray-900 mb-4">Quick Templates</h4>
+            <div className="space-y-3">
+              {strategyTemplates.map((template) => (
+                <div
+                  key={template.id}
+                  className={`p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+                    selectedTemplate === template.id
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  }`}
+                  onClick={() => applyTemplate(template.id)}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <h5 className="font-bold text-gray-900">{template.name}</h5>
+                    <div className="flex items-center space-x-1">
+                      <svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                      </svg>
+                      <span className="text-sm font-medium text-gray-600">{template.popularity}%</span>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-3">{template.description}</p>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-green-600 font-medium">Win Rate: {template.winRate}%</span>
+                    <span className="text-blue-600 font-medium">R:R {template.riskReward}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content Area */}
+        <div className="flex-1 overflow-auto">
+          <form onSubmit={handleSubmit} className="h-full">
+            {/* Content will be rendered based on activeTab */}
+            <div className="p-8 h-full">
+              {/* Overview Tab */}
+              {activeTab === 'overview' && (
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 h-full">
+                  <div className="xl:col-span-2 space-y-8">
+                    {/* Basic Information Card */}
+                    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
+                      <div className="flex items-center space-x-3 mb-8">
+                        <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+                          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h3 className="text-2xl font-bold text-gray-900">Strategy Information</h3>
+                          <p className="text-gray-600">Define your strategy's core identity</p>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div className="lg:col-span-2">
+                          <label className="flex items-center space-x-2 text-sm font-semibold text-gray-700 mb-3">
+                            <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                            </svg>
+                            <span>Strategy Name *</span>
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="text"
+                              name="name"
+                              value={formData.name}
+                              onChange={handleInputChange}
+                              className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white text-gray-900 font-medium placeholder-gray-500 text-lg"
+                              placeholder="Enter your strategy name..."
+                            />
+                          </div>
+                        </div>
+
+                        <div className="lg:col-span-2">
+                          <label className="flex items-center space-x-2 text-sm font-semibold text-gray-700 mb-3">
+                            <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
+                            </svg>
+                            <span>Strategy Description</span>
+                          </label>
+                          <textarea
+                            name="description"
+                            value={formData.description}
+                            onChange={handleInputChange}
+                            rows={4}
+                            className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all duration-200 bg-gray-50 hover:bg-white text-gray-900 font-medium placeholder-gray-500 resize-none"
+                            placeholder="Describe your trading strategy's approach, philosophy, and key principles..."
+                          />
+                        </div>
+
+                        <div>
+                          <label className="flex items-center space-x-2 text-sm font-semibold text-gray-700 mb-3">
+                            <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16l-3-3m3 3l3-3" />
+                            </svg>
+                            <span>Market Type *</span>
+                          </label>
+                          <select
+                            name="marketType"
+                            value={formData.marketType}
+                            onChange={handleInputChange}
+                            className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all duration-200 bg-gray-50 hover:bg-white text-gray-900 font-medium cursor-pointer"
+                          >
+                            <option value="">Select market type...</option>
+                            {marketTypes.map(type => (
+                              <option key={type} value={type}>{type}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="flex items-center space-x-2 text-sm font-semibold text-gray-700 mb-3">
+                            <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                            <span>Trading Style</span>
+                          </label>
+                          <select
+                            name="tradingStyle"
+                            value={formData.tradingStyle}
+                            onChange={handleInputChange}
+                            className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-200 bg-gray-50 hover:bg-white text-gray-900 font-medium cursor-pointer"
+                          >
+                            <option value="">Select trading style...</option>
+                            {tradingStyles.map(style => (
+                              <option key={style} value={style}>{style}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="flex items-center space-x-2 text-sm font-semibold text-gray-700 mb-3">
+                            <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span>Timeframe</span>
+                          </label>
+                          <select
+                            name="timeframe"
+                            value={formData.timeframe}
+                            onChange={handleInputChange}
+                            className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all duration-200 bg-gray-50 hover:bg-white text-gray-900 font-medium cursor-pointer"
+                          >
+                            <option value="">Select timeframe...</option>
+                            {timeframes.map(tf => (
+                              <option key={tf} value={tf}>{tf}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="flex items-center space-x-2 text-sm font-semibold text-gray-700 mb-3">
+                            <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                            </svg>
+                            <span>Complexity Level</span>
+                          </label>
+                          <select
+                            name="complexity"
+                            value={formData.complexity}
+                            onChange={handleInputChange}
+                            className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-200 bg-gray-50 hover:bg-white text-gray-900 font-medium cursor-pointer"
+                          >
+                            {complexityLevels.map(level => (
+                              <option key={level} value={level}>{level}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Live Analytics Panel */}
+                  <div className="space-y-6">
+                    {/* Live Preview */}
+                    <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-2xl border-2 border-blue-200/50 p-6 shadow-xl">
+                      <div className="flex items-center space-x-3 mb-6">
+                        <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
+                          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        </div>
+                        <h4 className="text-lg font-bold text-gray-900">Live Preview</h4>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-blue-100">
+                          <div className="text-sm font-semibold text-gray-600 mb-2">Strategy Name</div>
+                          <div className="font-bold text-gray-900 text-lg">
+                            {formData.name || 'Enter strategy name...'}
+                          </div>
+                        </div>
+                        
+                        <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-blue-100">
+                          <div className="text-sm font-semibold text-gray-600 mb-3">Configuration</div>
+                          <div className="flex flex-wrap gap-2">
+                            {formData.marketType && (
+                              <span className="inline-flex items-center px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full border border-emerald-200">
+                                {formData.marketType}
+                              </span>
+                            )}
+                            {formData.tradingStyle && (
+                              <span className="inline-flex items-center px-3 py-1 bg-orange-100 text-orange-800 text-xs font-bold rounded-full border border-orange-200">
+                                {formData.tradingStyle}
+                              </span>
+                            )}
+                            {formData.timeframe && (
+                              <span className="inline-flex items-center px-3 py-1 bg-purple-100 text-purple-800 text-xs font-bold rounded-full border border-purple-200">
+                                {formData.timeframe}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Market Analysis Widget */}
+                    <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl border-2 border-emerald-200/50 p-6 shadow-xl">
+                      <h4 className="text-lg font-bold text-gray-900 mb-4">Market Analysis</h4>
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-gray-600">Market Trend</span>
+                          <span className="text-sm font-bold text-green-600 bg-green-100 px-2 py-1 rounded-full">
+                            {marketData.trend}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-gray-600">Volatility</span>
+                          <span className="text-sm font-bold text-orange-600 bg-orange-100 px-2 py-1 rounded-full">
+                            {marketData.volatility}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-gray-600">Volume</span>
+                          <span className="text-sm font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
+                            {marketData.volume}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* AI Suggestions */}
+                    <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl border-2 border-purple-200/50 p-6 shadow-xl">
+                      <div className="flex items-center space-x-2 mb-4">
+                        <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded-md flex items-center justify-center">
+                          <span className="text-white text-sm">ðŸ¤–</span>
+                        </div>
+                        <h4 className="text-lg font-bold text-gray-900">AI Suggestions</h4>
+                      </div>
+                      <div className="space-y-3">
+                        <div className="bg-white/80 backdrop-blur-sm rounded-lg p-3 border border-purple-100">
+                          <div className="text-sm font-medium text-purple-800">Optimization Tip</div>
+                          <div className="text-xs text-gray-600 mt-1">
+                            Consider adding RSI divergence signals for better entries
+                          </div>
+                        </div>
+                        <div className="bg-white/80 backdrop-blur-sm rounded-lg p-3 border border-purple-100">
+                          <div className="text-sm font-medium text-purple-800">Risk Warning</div>
+                          <div className="text-xs text-gray-600 mt-1">
+                            Current market volatility suggests reducing position size
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+                </div>
+              )}
+
+              {/* Trading Rules Tab */}
+              {activeTab === 'rules' && (
+                <div className="grid grid-cols-1 xl:grid-cols-4 gap-8 h-full">
+                  <div className="xl:col-span-3 space-y-8">
+                    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
+                      <div className="flex items-center space-x-3 mb-8">
+                        <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+                          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v6a2 2 0 002 2h2m0 0h2m0 0h2a2 2 0 002-2V7a2 2 0 00-2-2h-2m0 0V4a2 2 0 10-4 0v1m0 0H9m0 0v5.5a2.5 2.5 0 005 0V6h1.5a1.5 1.5 0 000-3H15V1.5a1.5 1.5 0 00-3 0V3H9.5A1.5 1.5 0 108 4.5V6H6.5A1.5 1.5 0 106.5 9H8v5.5z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h3 className="text-2xl font-bold text-gray-900">Trading Rules</h3>
+                          <p className="text-gray-600">Define your entry, exit, and setup conditions</p>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-8">
+                        <div>
+                          <label className="flex items-center space-x-2 text-sm font-semibold text-gray-700 mb-4">
+                            <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                            </svg>
+                            <span>Setup Conditions *</span>
+                          </label>
+                          <textarea
+                            name="setupConditions"
+                            value={formData.setupConditions}
+                            onChange={handleInputChange}
+                            rows={6}
+                            className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white text-gray-900 font-medium placeholder-gray-500 resize-none"
+                            placeholder="Describe the specific market conditions required for this strategy..."
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                          <div>
+                            <label className="flex items-center space-x-2 text-sm font-semibold text-gray-700 mb-4">
+                              <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                              </svg>
+                              <span>Entry Rules *</span>
+                            </label>
+                            <textarea
+                              name="entryRules"
+                              value={formData.entryRules}
+                              onChange={handleInputChange}
+                              rows={8}
+                              className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-green-500/20 focus:border-green-500 transition-all duration-200 bg-gray-50 hover:bg-white text-gray-900 font-medium placeholder-gray-500 resize-none"
+                              placeholder="Define exact entry criteria..."
+                            />
+                          </div>
+
+                          <div>
+                            <label className="flex items-center space-x-2 text-sm font-semibold text-gray-700 mb-4">
+                              <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z" />
+                              </svg>
+                              <span>Exit Rules *</span>
+                            </label>
+                            <textarea
+                              name="exitRules"
+                              value={formData.exitRules}
+                              onChange={handleInputChange}
+                              rows={8}
+                              className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-red-500/20 focus:border-red-500 transition-all duration-200 bg-gray-50 hover:bg-white text-gray-900 font-medium placeholder-gray-500 resize-none"
+                              placeholder="Specify exit conditions..."
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                          <div>
+                            <label className="flex items-center space-x-2 text-sm font-semibold text-gray-700 mb-4">
+                              <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                              </svg>
+                              <span>Technical Indicators</span>
+                            </label>
+                            <textarea
+                              name="indicators"
+                              value={formData.indicators}
+                              onChange={handleInputChange}
+                              rows={4}
+                              className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all duration-200 bg-gray-50 hover:bg-white text-gray-900 font-medium placeholder-gray-500 resize-none"
+                              placeholder="List technical indicators used..."
+                            />
+                            <div className="mt-4 flex flex-wrap gap-2">
+                              {popularIndicators.slice(0, 6).map((indicator) => (
+                                <button
+                                  key={indicator}
+                                  type="button"
+                                  onClick={() => addSuggestion('indicators', indicator)}
+                                  className="px-3 py-1 text-xs bg-purple-100 text-purple-700 rounded-full hover:bg-purple-200 transition-colors border border-purple-200"
+                                >
+                                  + {indicator}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="flex items-center space-x-2 text-sm font-semibold text-gray-700 mb-4">
+                              <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                              </svg>
+                              <span>Strategy Tags</span>
+                            </label>
+                            <textarea
+                              name="tags"
+                              value={formData.tags}
+                              onChange={handleInputChange}
+                              rows={4}
+                              className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-200 bg-gray-50 hover:bg-white text-gray-900 font-medium placeholder-gray-500 resize-none"
+                              placeholder="Add relevant tags..."
+                            />
+                            <div className="mt-4 flex flex-wrap gap-2">
+                              {popularTags.slice(0, 6).map((tag) => (
+                                <button
+                                  key={tag}
+                                  type="button"
+                                  onClick={() => addSuggestion('tags', tag)}
+                                  className="px-3 py-1 text-xs bg-indigo-100 text-indigo-700 rounded-full hover:bg-indigo-200 transition-colors border border-indigo-200"
+                                >
+                                  + {tag}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 rounded-2xl border-2 border-green-200/50 p-6 shadow-xl">
+                      <h4 className="text-lg font-bold text-gray-900 mb-4">Rules Analyzer</h4>
+                      <div className="space-y-4">
+                        <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-green-100">
+                          <div className="text-sm font-semibold text-gray-600 mb-2">Complexity Score</div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div className="bg-gradient-to-r from-green-400 to-green-600 h-2 rounded-full" style={{width: '75%'}}></div>
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">Moderate complexity</div>
+                        </div>
+                        
+                        <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-green-100">
+                          <div className="text-sm font-semibold text-gray-600 mb-2">Clarity Rating</div>
+                          <div className="flex items-center space-x-1">
+                            {[1,2,3,4,5].map(i => (
+                              <svg key={i} className="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                              </svg>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Risk Management Tab */}
+              {activeTab === 'risk' && (
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 h-full">
+                  <div className="xl:col-span-2 space-y-8">
+                    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
+                      <div className="flex items-center space-x-3 mb-8">
+                        <div className="w-12 h-12 bg-gradient-to-r from-red-500 to-red-600 rounded-xl flex items-center justify-center">
+                          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h3 className="text-2xl font-bold text-gray-900">Risk Management</h3>
+                          <p className="text-gray-600">Configure your risk parameters and position sizing</p>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                          <label className="flex items-center space-x-2 text-sm font-semibold text-gray-700 mb-3">
+                            <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                            </svg>
+                            <span>Max Risk per Trade (%)</span>
+                          </label>
+                          <input
+                            type="number"
+                            name="maxRisk"
+                            value={formData.maxRisk}
+                            onChange={handleInputChange}
+                            step="0.1"
+                            className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-red-500/20 focus:border-red-500 transition-all duration-200 bg-gray-50 hover:bg-white text-gray-900 font-medium"
+                            placeholder="2.0"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="flex items-center space-x-2 text-sm font-semibold text-gray-700 mb-3">
+                            <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                            <span>Expected Win Rate (%)</span>
+                          </label>
+                          <input
+                            type="number"
+                            name="winRate"
+                            value={formData.winRate}
+                            onChange={handleInputChange}
+                            className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-green-500/20 focus:border-green-500 transition-all duration-200 bg-gray-50 hover:bg-white text-gray-900 font-medium"
+                            placeholder="65"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="flex items-center space-x-2 text-sm font-semibold text-gray-700 mb-3">
+                            <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                            </svg>
+                            <span>Risk:Reward Ratio</span>
+                          </label>
+                          <input
+                            type="number"
+                            name="profitTarget"
+                            value={formData.profitTarget}
+                            onChange={handleInputChange}
+                            step="0.1"
+                            className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white text-gray-900 font-medium"
+                            placeholder="2.0"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="flex items-center space-x-2 text-sm font-semibold text-gray-700 mb-3">
+                            <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span>Monthly Target (%)</span>
+                          </label>
+                          <input
+                            type="number"
+                            name="monthlyTarget"
+                            value={formData.monthlyTarget}
+                            onChange={handleInputChange}
+                            step="0.1"
+                            className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all duration-200 bg-gray-50 hover:bg-white text-gray-900 font-medium"
+                            placeholder="5.0"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    {/* Risk Calculator */}
+                    <div className="bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50 rounded-2xl border-2 border-purple-200/50 p-6 shadow-xl">
+                      <h4 className="text-lg font-bold text-gray-900 mb-4">Risk Calculator</h4>
+                      <div className="space-y-4">
+                        <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-purple-100">
+                          <div className="text-sm font-semibold text-gray-600 mb-2">Risk Score</div>
+                          <div className="text-2xl font-bold text-purple-600">{calculateRiskScore().score}/100</div>
+                          <div className="text-xs text-gray-500">{calculateRiskScore().label}</div>
+                        </div>
+                        
+                        <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-purple-100">
+                          <div className="text-sm font-semibold text-gray-600 mb-3">Expected Returns</div>
+                          <div className="space-y-2">
+                            <div className="flex justify-between">
+                              <span className="text-xs text-gray-600">Monthly:</span>
+                              <span className="text-xs font-bold text-green-600">{formData.monthlyTarget || '5'}%</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-xs text-gray-600">Annual:</span>
+                              <span className="text-xs font-bold text-green-600">{(parseFloat(formData.monthlyTarget || '5') * 12).toFixed(1)}%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Advanced Settings Tab */}
+              {activeTab === 'advanced' && (
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 h-full">
+                  <div className="xl:col-span-2 space-y-8">
+                    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
+                      <div className="flex items-center space-x-3 mb-8">
+                        <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
+                          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h3 className="text-2xl font-bold text-gray-900">Advanced Settings</h3>
+                          <p className="text-gray-600">Fine-tune your strategy with advanced parameters</p>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                          <label className="flex items-center space-x-2 text-sm font-semibold text-gray-700 mb-3">
+                            <span>Position Sizing Method</span>
+                          </label>
+                          <select
+                            name="positionSizing"
+                            value={formData.positionSizing}
+                            onChange={handleInputChange}
+                            className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-200 bg-gray-50 hover:bg-white text-gray-900 font-medium"
+                          >
+                            <option value="fixed">Fixed Size</option>
+                            <option value="percentage">Percentage of Capital</option>
+                            <option value="kelly">Kelly Criterion</option>
+                            <option value="martingale">Martingale</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="flex items-center space-x-2 text-sm font-semibold text-gray-700 mb-3">
+                            <span>Maximum Concurrent Positions</span>
+                          </label>
+                          <input
+                            type="number"
+                            name="maxPositions"
+                            value={formData.maxPositions}
+                            onChange={handleInputChange}
+                            className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-200 bg-gray-50 hover:bg-white text-gray-900 font-medium"
+                            placeholder="3"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="flex items-center space-x-2 text-sm font-semibold text-gray-700 mb-3">
+                            <span>Correlation Limit</span>
+                          </label>
+                          <input
+                            type="number"
+                            name="correlationLimit"
+                            value={formData.correlationLimit}
+                            onChange={handleInputChange}
+                            step="0.1"
+                            max="1"
+                            className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-200 bg-gray-50 hover:bg-white text-gray-900 font-medium"
+                            placeholder="0.7"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="flex items-center space-x-2 text-sm font-semibold text-gray-700 mb-3">
+                            <span>Maximum Drawdown (%)</span>
+                          </label>
+                          <input
+                            type="number"
+                            name="drawdownLimit"
+                            value={formData.drawdownLimit}
+                            onChange={handleInputChange}
+                            className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-200 bg-gray-50 hover:bg-white text-gray-900 font-medium"
+                            placeholder="15"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-2xl border-2 border-orange-200/50 p-6 shadow-xl">
+                      <h4 className="text-lg font-bold text-gray-900 mb-4">Advanced Analytics</h4>
+                      <div className="space-y-4">
+                        <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-orange-100">
+                          <div className="text-sm font-semibold text-gray-600 mb-2">Strategy Complexity</div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div className="bg-gradient-to-r from-orange-400 to-red-600 h-2 rounded-full" style={{width: '85%'}}></div>
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">High complexity strategy</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Backtest Setup Tab */}
+              {activeTab === 'backtest' && (
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 h-full">
+                  <div className="xl:col-span-2 space-y-8">
+                    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
+                      <div className="flex items-center space-x-3 mb-8">
+                        <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
+                          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h3 className="text-2xl font-bold text-gray-900">Backtest Configuration</h3>
+                          <p className="text-gray-600">Set up historical testing parameters</p>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                          <label className="flex items-center space-x-2 text-sm font-semibold text-gray-700 mb-3">
+                            <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span>Start Date</span>
+                          </label>
+                          <input
+                            type="date"
+                            name="backtestStartDate"
+                            value={formData.backtestStartDate}
+                            onChange={handleInputChange}
+                            className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white text-gray-900 font-medium"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="flex items-center space-x-2 text-sm font-semibold text-gray-700 mb-3">
+                            <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span>End Date</span>
+                          </label>
+                          <input
+                            type="date"
+                            name="backtestEndDate"
+                            value={formData.backtestEndDate}
+                            onChange={handleInputChange}
+                            className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all duration-200 bg-gray-50 hover:bg-white text-gray-900 font-medium"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="flex items-center space-x-2 text-sm font-semibold text-gray-700 mb-3">
+                            <span>Commission (%)</span>
+                          </label>
+                          <input
+                            type="number"
+                            name="commission"
+                            value={formData.commission}
+                            onChange={handleInputChange}
+                            step="0.01"
+                            className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-green-500/20 focus:border-green-500 transition-all duration-200 bg-gray-50 hover:bg-white text-gray-900 font-medium"
+                            placeholder="0.1"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="flex items-center space-x-2 text-sm font-semibold text-gray-700 mb-3">
+                            <span>Slippage (%)</span>
+                          </label>
+                          <input
+                            type="number"
+                            name="slippage"
+                            value={formData.slippage}
+                            onChange={handleInputChange}
+                            step="0.01"
+                            className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-red-500/20 focus:border-red-500 transition-all duration-200 bg-gray-50 hover:bg-white text-gray-900 font-medium"
+                            placeholder="0.05"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mt-8 pt-8 border-t border-gray-200">
+                        <div className="flex items-center justify-between mb-6">
+                          <h4 className="text-lg font-bold text-gray-900">Backtest Results Simulation</h4>
+                          <button
+                            type="button"
+                            className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg font-medium hover:from-green-600 hover:to-emerald-700 transition-all duration-200 shadow-lg"
+                          >
+                            Run Simulation
+                          </button>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                          {[
+                            { label: 'Total Return', value: '24.5%', color: 'text-green-600' },
+                            { label: 'Max Drawdown', value: '-8.2%', color: 'text-red-600' },
+                            { label: 'Sharpe Ratio', value: '1.85', color: 'text-blue-600' },
+                            { label: 'Win Rate', value: '68%', color: 'text-purple-600' }
+                          ].map((metric, index) => (
+                            <div key={index} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                              <div className="text-sm font-semibold text-gray-600 mb-1">{metric.label}</div>
+                              <div className={`text-xl font-bold ${metric.color}`}>{metric.value}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-2xl border-2 border-teal-200/50 p-6 shadow-xl">
+                      <h4 className="text-lg font-bold text-gray-900 mb-4">Performance Metrics</h4>
+                      <div className="space-y-4">
+                        <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-teal-100">
+                          <div className="text-sm font-semibold text-gray-600 mb-2">Profit Factor</div>
+                          <div className="text-2xl font-bold text-teal-600">2.34</div>
+                        </div>
+                        
+                        <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-teal-100">
+                          <div className="text-sm font-semibold text-gray-600 mb-2">Average Trade</div>
+                          <div className="text-xl font-bold text-green-600">+$145</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* AI Optimization Tab */}
+              {activeTab === 'optimization' && (
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 h-full">
+                  <div className="xl:col-span-2 space-y-8">
+                    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
+                      <div className="flex items-center space-x-3 mb-8">
+                        <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
+                          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h3 className="text-2xl font-bold text-gray-900">AI Strategy Optimization</h3>
+                          <p className="text-gray-600">Let AI enhance your trading strategy</p>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-8">
+                        <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-200">
+                          <div className="flex items-center justify-between mb-4">
+                            <h4 className="text-lg font-bold text-gray-900">AI Recommendations</h4>
+                            <button
+                              type="button"
+                              onClick={getAISuggestions}
+                              disabled={isLoadingAI}
+                              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-pink-700 transition-all duration-200 shadow-lg disabled:opacity-50"
+                            >
+                              {isLoadingAI ? 'Analyzing...' : 'Get AI Suggestions'}
+                            </button>
+                          </div>
+                          
+                          <div className="space-y-4">
+                            {isLoadingAI ? (
+                              <div className="flex items-center justify-center py-8">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                                <span className="ml-3 text-gray-600">AI is analyzing your strategy...</span>
+                              </div>
+                            ) : aiSuggestions.suggestions?.length > 0 ? (
+                              aiSuggestions.suggestions.map((suggestion: any, index: number) => (
+                                <div key={index} className="bg-white rounded-lg p-4 border border-purple-100">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <h5 className="font-bold text-gray-900">{suggestion.title}</h5>
+                                    <div className="flex items-center space-x-2">
+                                      <span className={`text-sm font-bold px-2 py-1 rounded-full ${ 
+                                        suggestion.priority === 'High' ? 'text-red-600 bg-red-100' :
+                                        suggestion.priority === 'Medium' ? 'text-yellow-600 bg-yellow-100' :
+                                        'text-green-600 bg-green-100'
+                                      }`}>
+                                        {suggestion.priority}
+                                      </span>
+                                      <span className="text-sm font-bold text-green-600 bg-green-100 px-2 py-1 rounded-full">
+                                        {suggestion.improvement}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <p className="text-sm text-gray-600 mb-3">{suggestion.description}</p>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs text-purple-600 bg-purple-100 px-2 py-1 rounded-full">
+                                      {suggestion.category}
+                                    </span>
+                                    <button className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors">
+                                      Apply Suggestion
+                                    </button>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              // Default suggestions when AI hasn't been called yet
+                              [
+                                { title: 'Parameter Optimization', description: 'Optimize RSI periods and MACD settings for better performance', improvement: '+15% returns', category: 'Parameter Optimization', priority: 'High' },
+                                { title: 'Entry Timing', description: 'Add volume confirmation to reduce false signals', improvement: '+8% win rate', category: 'Entry Timing', priority: 'Medium' },
+                                { title: 'Risk Management', description: 'Implement dynamic position sizing based on volatility', improvement: '-20% drawdown', category: 'Risk Management', priority: 'High' }
+                              ].map((rec, index) => (
+                                <div key={index} className="bg-white rounded-lg p-4 border border-purple-100">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <h5 className="font-bold text-gray-900">{rec.title}</h5>
+                                    <span className="text-sm font-bold text-green-600 bg-green-100 px-2 py-1 rounded-full">
+                                      {rec.improvement}
+                                    </span>
+                                  </div>
+                                  <p className="text-sm text-gray-600">{rec.description}</p>
+                                  <button className="mt-3 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors">
+                                    Apply Suggestion
+                                  </button>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-3">
+                              Optimization Goal
+                            </label>
+                            <select className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all duration-200 bg-gray-50 hover:bg-white text-gray-900 font-medium">
+                              <option>Maximize Profit</option>
+                              <option>Minimize Risk</option>
+                              <option>Optimize Sharpe Ratio</option>
+                              <option>Reduce Drawdown</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-3">
+                              Optimization Intensity
+                            </label>
+                            <select className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all duration-200 bg-gray-50 hover:bg-white text-gray-900 font-medium">
+                              <option>Conservative</option>
+                              <option>Moderate</option>
+                              <option>Aggressive</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl border-2 border-indigo-200/50 p-6 shadow-xl">
+                      <h4 className="text-lg font-bold text-gray-900 mb-4">AI Analysis</h4>
+                      <div className="space-y-4">
+                        <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-indigo-100">
+                          <div className="text-sm font-semibold text-gray-600 mb-2">Strategy Score</div>
+                          <div className="text-2xl font-bold text-indigo-600">8.7/10</div>
+                          <div className="text-xs text-gray-500">Excellent potential</div>
+                        </div>
+                        
+                        <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-indigo-100">
+                          <div className="text-sm font-semibold text-gray-600 mb-3">Market Fit</div>
+                          <div className="space-y-2">
+                            <div className="flex justify-between">
+                              <span className="text-xs text-gray-600">Current Conditions:</span>
+                              <span className="text-xs font-bold text-green-600">92% Match</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-xs text-gray-600">Risk Level:</span>
+                              <span className="text-xs font-bold text-yellow-600">Moderate</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-xs text-gray-600">Complexity:</span>
+                              <span className="text-xs font-bold text-blue-600">Advanced</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Final Review Tab */}
+              {activeTab === 'review' && (
+                <div className="space-y-8 h-full">
+                  <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
+                    <div className="flex items-center space-x-3 mb-8">
+                      <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
+                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h3 className="text-2xl font-bold text-gray-900">Strategy Review & Submit</h3>
+                        <p className="text-gray-600">Final review before publishing your strategy</p>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                      <div className="lg:col-span-2 space-y-6">
+                        <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+                          <h4 className="text-lg font-bold text-gray-900 mb-4">Strategy Summary</h4>
+                          <div className="space-y-4">
+                            <div>
+                              <span className="text-sm font-semibold text-gray-600">Name:</span>
+                              <span className="ml-2 text-gray-900 font-medium">{formData.name || 'Untitled Strategy'}</span>
+                            </div>
+                            <div>
+                              <span className="text-sm font-semibold text-gray-600">Market:</span>
+                              <span className="ml-2 text-gray-900 font-medium">{formData.marketType || 'Not specified'}</span>
+                            </div>
+                            <div>
+                              <span className="text-sm font-semibold text-gray-600">Style:</span>
+                              <span className="ml-2 text-gray-900 font-medium">{formData.tradingStyle || 'Not specified'}</span>
+                            </div>
+                            <div>
+                              <span className="text-sm font-semibold text-gray-600">Risk per Trade:</span>
+                              <span className="ml-2 text-gray-900 font-medium">{formData.maxRisk || '2'}%</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+                          <h4 className="text-lg font-bold text-gray-900 mb-4">Completion Status</h4>
+                          <div className="space-y-3">
+                            {[
+                              { section: 'Basic Information', completed: !!formData.name && !!formData.marketType },
+                              { section: 'Trading Rules', completed: !!formData.setupConditions && !!formData.entryRules },
+                              { section: 'Risk Management', completed: !!formData.maxRisk && !!formData.winRate },
+                              { section: 'Advanced Settings', completed: true },
+                              { section: 'Backtest Setup', completed: !!formData.backtestStartDate }
+                            ].map((item, index) => (
+                              <div key={index} className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-gray-700">{item.section}</span>
+                                <div className={`w-4 h-4 rounded-full ${item.completed ? 'bg-green-500' : 'bg-gray-300'}`}>
+                                  {item.completed && (
+                                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                      <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-6">
+                        <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-6 border-2 border-emerald-200/50">
+                          <h4 className="text-lg font-bold text-gray-900 mb-4">Final Score</h4>
+                          <div className="text-center">
+                            <div className="text-4xl font-bold text-emerald-600 mb-2">9.2/10</div>
+                            <div className="text-sm text-gray-600 mb-4">Excellent Strategy</div>
+                            <div className="w-full bg-gray-200 rounded-full h-3">
+                              <div className="bg-gradient-to-r from-emerald-400 to-teal-600 h-3 rounded-full" style={{width: '92%'}}></div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border-2 border-blue-200/50">
+                          <h4 className="text-lg font-bold text-gray-900 mb-4">Estimated Performance</h4>
+                          <div className="space-y-3">
+                            <div className="flex justify-between">
+                              <span className="text-sm text-gray-600">Annual Return</span>
+                              <span className="font-bold text-green-600">+28.5%</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-sm text-gray-600">Max Drawdown</span>
+                              <span className="font-bold text-red-600">-8.2%</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-sm text-gray-600">Sharpe Ratio</span>
+                              <span className="font-bold text-blue-600">1.85</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Fixed Bottom Action Bar */}
+            <div className="sticky bottom-0 bg-white border-t border-gray-200 px-8 py-4 shadow-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="text-sm text-gray-600">
+                    Progress: {activeTab === 'overview' ? '15%' : '0%'} complete
+                  </div>
+                  <div className="w-32 h-2 bg-gray-200 rounded-full">
+                    <div className={`h-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full ${activeTab === 'overview' ? 'w-6' : 'w-0'}`}></div>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-4">
+                  <button
+                    type="button"
+                    className="px-6 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all duration-200 font-medium"
+                  >
+                    Save Draft
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const currentIndex = dashboardTabs.findIndex(t => t.id === activeTab);
+                      if (currentIndex < dashboardTabs.length - 1) {
+                        setActiveTab(dashboardTabs[currentIndex + 1].id);
+                      }
+                    }}
+                    className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg transition-all duration-200 font-medium shadow-lg"
+                  >
+                    <span>Continue</span>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+} 

@@ -5,6 +5,9 @@ import { getDatabase, COLLECTIONS } from '@/lib/mongodb';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
+// In production, implement proper rate limiting
+const loginAttempts = new Map<string, { count: number; lastAttempt: number }>();
+
 export async function POST(request: NextRequest) {
   try {
     const { email, password } = await request.json();
@@ -17,12 +20,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { message: 'Invalid email format' },
+        { status: 400 }
+      );
+    }
+
+    // Simple rate limiting (in production, use Redis or proper solution)
+    const clientIP = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+    const now = Date.now();
+    const attempts = loginAttempts.get(clientIP);
+    
+    if (attempts && attempts.count >= 5 && now - attempts.lastAttempt < 15 * 60 * 1000) { // 15 minutes
+      return NextResponse.json(
+        { message: 'Too many login attempts. Please try again later.' },
+        { status: 429 }
+      );
+    }
+
     const db = await getDatabase();
     const usersCollection = db.collection(COLLECTIONS.USERS);
 
-    // Find user by email
-    const user = await usersCollection.findOne({ email: email.toLowerCase() });
+    // Find user by email (case insensitive)
+    const user = await usersCollection.findOne({ 
+      email: email.toLowerCase().trim() 
+    });
+    
     if (!user) {
+      // Track failed attempt
+      const currentAttempts = loginAttempts.get(clientIP) || { count: 0, lastAttempt: 0 };
+      loginAttempts.set(clientIP, { 
+        count: currentAttempts.count + 1, 
+        lastAttempt: now 
+      });
+      
       return NextResponse.json(
         { message: 'Invalid email or password' },
         { status: 401 }
@@ -32,11 +66,21 @@ export async function POST(request: NextRequest) {
     // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
+      // Track failed attempt
+      const currentAttempts = loginAttempts.get(clientIP) || { count: 0, lastAttempt: 0 };
+      loginAttempts.set(clientIP, { 
+        count: currentAttempts.count + 1, 
+        lastAttempt: now 
+      });
+      
       return NextResponse.json(
         { message: 'Invalid email or password' },
         { status: 401 }
       );
     }
+
+    // Clear failed attempts on successful login
+    loginAttempts.delete(clientIP);
 
     // Generate JWT token
     const token = jwt.sign(
@@ -53,7 +97,13 @@ export async function POST(request: NextRequest) {
     // Update last login
     await usersCollection.updateOne(
       { _id: user._id },
-      { $set: { lastLogin: new Date(), updatedAt: new Date() } }
+      { 
+        $set: { 
+          lastLogin: new Date(), 
+          updatedAt: new Date(),
+          lastLoginIP: clientIP
+        } 
+      }
     );
 
     // Return user data (without password) and token
@@ -73,7 +123,10 @@ export async function POST(request: NextRequest) {
     }, { status: 200 });
 
   } catch (error) {
-    console.error('Login error:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Login error:', error);
+    }
+    
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

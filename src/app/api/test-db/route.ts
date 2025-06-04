@@ -1,27 +1,50 @@
 import { NextResponse } from 'next/server';
-import { getDatabase } from '@/lib/mongodb';
+import connectDB from '@/lib/mongoose';
+import mongoose from 'mongoose';
 
 export async function GET() {
   try {
-    const db = await getDatabase();
+    console.log('Testing database connection...');
     
-    // Try to ping the database
-    await db.admin().ping();
+    // Test connection
+    await connectDB();
     
-    return NextResponse.json({
-      message: 'Database connection successful',
-      status: 'connected',
-      timestamp: new Date().toISOString()
-    }, { status: 200 });
+    const dbName = mongoose.connection.db?.databaseName;
+    const readyState = mongoose.connection.readyState;
+    const collections = await mongoose.connection.db?.listCollections().toArray();
+    
+    const readyStateMap: Record<number, string> = {
+      0: 'disconnected',
+      1: 'connected',
+      2: 'connecting',
+      3: 'disconnecting'
+    };
+    
+    console.log('Database test results:', {
+      connected: readyState === 1,
+      dbName,
+      readyState,
+      collectionsCount: collections?.length || 0
+    });
 
-  } catch (error) {
-    console.error('Database connection test failed:', error);
-    
     return NextResponse.json({
-      message: 'Database connection failed',
-      status: 'error',
-      error: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: new Date().toISOString()
+      success: true,
+      connection: {
+        connected: readyState === 1,
+        databaseName: dbName,
+        readyState: readyState,
+        readyStateText: readyStateMap[readyState] || 'unknown',
+        collections: collections?.map(c => c.name) || []
+      },
+      message: 'Database connection test successful'
+    });
+  } catch (error) {
+    console.error('Database test failed:', error);
+    return NextResponse.json({
+      success: false,
+      error: 'Database connection test failed',
+      details: error instanceof Error ? error.message : 'Unknown error',
+      stack: process.env.NODE_ENV === 'development' ? error instanceof Error ? error.stack : undefined : undefined
     }, { status: 500 });
   }
 }

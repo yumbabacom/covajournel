@@ -4,7 +4,7 @@ import { getUserFromRequest } from '@/lib/auth';
 import { ObjectId } from 'mongodb';
 
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -14,7 +14,7 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid strategy ID' }, { status: 400 });
     }
 
-    const db = await connectToDatabase();
+    const db = await getDatabase();
     const strategy = await db.collection('strategies').findOne({ _id: new ObjectId(id) });
 
     if (!strategy) {
@@ -161,22 +161,33 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Verify authentication
+    const user = getUserFromRequest(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { id } = params;
 
     if (!ObjectId.isValid(id)) {
       return NextResponse.json({ error: 'Invalid strategy ID' }, { status: 400 });
     }
 
-    const db = await connectToDatabase();
+    const db = await getDatabase();
+    const strategiesCollection = db.collection(COLLECTIONS.STRATEGIES);
 
-    // Check if strategy exists
-    const strategy = await db.collection('strategies').findOne({ _id: new ObjectId(id) });
+    // Check if strategy exists and belongs to user
+    const strategy = await strategiesCollection.findOne({ 
+      _id: new ObjectId(id),
+      userId: new ObjectId(user.userId)
+    });
+    
     if (!strategy) {
-      return NextResponse.json({ error: 'Strategy not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Strategy not found or access denied' }, { status: 404 });
     }
 
     // Check if strategy is being used by any trades
-    const tradesUsingStrategy = await db.collection('trades')
+    const tradesUsingStrategy = await db.collection(COLLECTIONS.TRADES)
       .countDocuments({ strategyId: id });
 
     if (tradesUsingStrategy > 0) {
@@ -186,7 +197,7 @@ export async function DELETE(
     }
 
     // Delete the strategy
-    const result = await db.collection('strategies').deleteOne({ _id: new ObjectId(id) });
+    const result = await strategiesCollection.deleteOne({ _id: new ObjectId(id) });
 
     if (result.deletedCount === 0) {
       return NextResponse.json({ error: 'Failed to delete strategy' }, { status: 500 });

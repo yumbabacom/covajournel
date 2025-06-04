@@ -162,7 +162,7 @@ function getMostTradedSymbols(trades: any[]) {
   }, {} as Record<string, number>);
 
   return Object.entries(symbolCounts)
-    .map(([symbol, count]) => ({ symbol, count }))
+    .map(([symbol, count]) => ({ symbol, count: count as number }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 10);
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface Trade {
   id: string;
@@ -49,10 +49,22 @@ interface Trade {
 interface TradeDetailModalProps {
   trade: Trade;
   onClose: () => void;
+  onEdit?: (trade: Trade) => void;
 }
 
-export default function TradeDetailModal({ trade, onClose }: TradeDetailModalProps) {
+export default function TradeDetailModal({ trade, onClose, onEdit }: TradeDetailModalProps) {
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
+
+  // Dispatch modal events
+  useEffect(() => {
+    // Dispatch modalOpen event when component mounts
+    window.dispatchEvent(new Event('modalOpen'));
+
+    // Dispatch modalClose event when component unmounts
+    return () => {
+      window.dispatchEvent(new Event('modalClose'));
+    };
+  }, []);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -78,9 +90,7 @@ export default function TradeDetailModal({ trade, onClose }: TradeDetailModalPro
   };
 
   const getPnLColor = (trade: Trade) => {
-    const profit = trade.profitDollars || 0;
-    const loss = trade.lossDollars || 0;
-    const pnl = profit - loss;
+    const pnl = trade.profitDollars || 0;
     return pnl >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
   };
 
@@ -91,13 +101,12 @@ export default function TradeDetailModal({ trade, onClose }: TradeDetailModalPro
     ...(trade.images || []).map((url, index) => ({ url, type: 'other' as const, label: `Additional Image ${index + 1}` }))
   ];
 
-  const profit = trade.profitDollars || 0;
-  const loss = trade.lossDollars || 0;
-  const netPnL = profit - loss;
+  const profit = Number(trade.profitDollars) || 0;
+  const netPnL = profit;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-6xl max-h-[95vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+      <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 w-full max-w-6xl max-h-[95vh] overflow-hidden transform transition-all duration-300">
         {/* Header */}
         <div className="bg-gradient-to-r from-slate-50 to-blue-50 border-b border-gray-200 p-6">
           <div className="flex items-center justify-between">
@@ -133,6 +142,22 @@ export default function TradeDetailModal({ trade, onClose }: TradeDetailModalPro
                 </div>
               </div>
             </div>
+            <div className="flex items-center space-x-3">
+              {/* Edit Trade Button */}
+              {onEdit && (
+                <button
+                  onClick={() => onEdit(trade)}
+                  className="flex items-center space-x-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-colors duration-200 shadow-sm font-medium"
+                  title="Edit Trade"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  <span>Edit</span>
+                </button>
+              )}
+              
+              {/* Close Button */}
             <button
               onClick={onClose}
               className="w-10 h-10 bg-white hover:bg-gray-50 border border-gray-200 rounded-full flex items-center justify-center transition-colors duration-200 shadow-sm"
@@ -141,6 +166,7 @@ export default function TradeDetailModal({ trade, onClose }: TradeDetailModalPro
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
+            </div>
           </div>
         </div>
 
@@ -213,7 +239,7 @@ export default function TradeDetailModal({ trade, onClose }: TradeDetailModalPro
                     <div className="p-5 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-200 text-center">
                       <p className="text-sm text-blue-600 mb-2 font-medium">Risk:Reward</p>
                       <p className="text-3xl font-bold text-blue-700">
-                        1:{trade.riskRewardRatio.toFixed(2)}
+                        1:{(trade.riskRewardRatio || 0).toFixed(2)}
                       </p>
                     </div>
                   )}
@@ -232,7 +258,7 @@ export default function TradeDetailModal({ trade, onClose }: TradeDetailModalPro
                   <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
                     <p className="text-xs text-gray-500 mb-1 font-medium">Lot Size</p>
                     <p className="text-lg font-bold text-gray-900">
-                      {trade.lotSize.toFixed(4)}
+                      {(trade.lotSize || 0).toFixed(4)}
                     </p>
                     <p className="text-xs text-gray-500">
                       {trade.symbol.includes('/') ? 'Lots' : 'Units'}
@@ -259,7 +285,7 @@ export default function TradeDetailModal({ trade, onClose }: TradeDetailModalPro
                     <div className="p-4 bg-yellow-50 rounded-xl border border-yellow-200">
                       <p className="text-xs text-yellow-600 mb-1 font-medium">Risk Amount</p>
                       <p className="text-lg font-bold text-yellow-700">
-                        ${trade.riskAmount.toFixed(2)}
+                        ${(trade.riskAmount || 0).toFixed(2)}
                       </p>
                     </div>
                   )}
@@ -464,7 +490,7 @@ export default function TradeDetailModal({ trade, onClose }: TradeDetailModalPro
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-500 font-medium">Trade ID</span>
                       <span className="text-xs text-gray-600 font-mono bg-gray-100 px-2 py-1 rounded">
-                        {trade.id.slice(0, 8)}...
+                        {(trade.id || '').slice(0, 8)}...
                       </span>
                     </div>
                     {trade.user && (

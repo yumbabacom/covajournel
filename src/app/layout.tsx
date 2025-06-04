@@ -1,23 +1,25 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "./components/AuthProvider";
 import { AccountProvider } from "./components/AccountProvider";
+import { SidebarProvider } from "./contexts/SidebarContext";
+import { AMTraderProvider } from "./contexts/AMTraderContext";
 import AppLayout from "./components/AppLayout";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "TradingCalc Pro - Advanced Trading Calculator & Journal",
-  description: "Professional trading calculator with risk management tools and comprehensive trade journal. Calculate position sizes, risk-reward ratios, and manage your trading performance.",
+  title: "TradingCalc Pro - Professional Trading Journal",
+  description: "Professional trading journal and analytics platform for serious traders.",
 };
 
 export default function RootLayout({
@@ -28,13 +30,17 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}
       >
         <AuthProvider>
           <AccountProvider>
-            <AppLayout>
-              {children}
-            </AppLayout>
+            <SidebarProvider>
+              <AMTraderProvider>
+                <AppLayout>
+                  {children}
+                </AppLayout>
+              </AMTraderProvider>
+            </SidebarProvider>
           </AccountProvider>
         </AuthProvider>
       </body>

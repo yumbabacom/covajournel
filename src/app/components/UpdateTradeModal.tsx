@@ -26,7 +26,7 @@ export default function UpdateTradeModal({
   onClose,
   onUpdate
 }: UpdateTradeModalProps) {
-  const { refreshAccounts } = useAccount();
+  const { refreshAccounts, updateAccount, selectedAccount } = useAccount();
   const [updateData, setUpdateData] = useState({
     status: trade.status,
     notes: trade.notes || '',
@@ -61,6 +61,47 @@ export default function UpdateTradeModal({
 
   const removeImage = (index: number) => {
     setClosingImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updateAccountBalance = async (updateData: any) => {
+    if (!selectedAccount) return false;
+    
+    try {
+      let balanceChange = 0;
+      
+      // Calculate balance change based on trade status
+      if (updateData.status === 'WIN' && updateData.profitDollars) {
+        balanceChange = updateData.profitDollars;
+      } else if (updateData.status === 'LOSS' && updateData.profitDollars) {
+        // For LOSS trades, profitDollars contains the loss amount as positive value
+        balanceChange = -Math.abs(updateData.profitDollars);
+      } else {
+        console.log('No profit/loss amount found, skipping balance update');
+        return false;
+      }
+      
+      const newBalance = selectedAccount.currentBalance + balanceChange;
+      
+      console.log('Updating account balance:', {
+        status: updateData.status,
+        currentBalance: selectedAccount.currentBalance,
+        balanceChange,
+        newBalance,
+        profitDollars: updateData.profitDollars
+      });
+      
+      await updateAccount(selectedAccount.id, { currentBalance: newBalance });
+      
+      // ✅ NOTIFY ACCOUNT BALANCE UPDATE
+      window.dispatchEvent(new CustomEvent('accountBalanceUpdated', { 
+        detail: { accountId: selectedAccount.id, newBalance } 
+      }));
+      
+      return true;
+    } catch (error) {
+      console.error('Failed to update account balance:', error);
+      return false;
+    }
   };
 
   const handleSubmit = async () => {
@@ -105,12 +146,11 @@ export default function UpdateTradeModal({
         })
       };
 
-      const result = await onUpdate(trade.id, finalUpdateData);
+      // Update the trade
+      await onUpdate(trade.id, finalUpdateData);
 
-      // If balance was updated, refresh accounts to show new balance
-      if (result?.balanceUpdated) {
-        await refreshAccounts();
-      }
+      // ✅ BALANCE IS NOW UPDATED AUTOMATICALLY BY BACKEND
+      // No need for duplicate frontend balance updates
 
       onClose();
     } catch (error) {
@@ -120,311 +160,258 @@ export default function UpdateTradeModal({
     }
   };
 
+  // Helper functions for status styling
+  const getStatusButtonStyle = (status: string) => {
+    switch (status) {
+      case 'PLANNED':
+        return 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-lg';
+      case 'ACTIVE':
+        return 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg';
+      case 'WIN':
+        return 'bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-lg';
+      case 'LOSS':
+        return 'bg-gradient-to-r from-red-500 to-pink-500 text-white shadow-lg';
+      default:
+        return 'bg-gray-100 text-gray-600';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'PLANNED':
+        return (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        );
+      case 'ACTIVE':
+        return (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        );
+      case 'WIN':
+        return (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        );
+      case 'LOSS':
+        return (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-5xl max-h-[95vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-slate-50 to-blue-50 border-b border-gray-200 p-6">
+        <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 border-b border-gray-200 p-8">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center shadow-lg">
-                <span className="text-white font-bold text-2xl">
-                  {trade.symbol.split('/')[0].charAt(0)}
-                </span>
+            <div className="flex items-center space-x-6">
+              <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500 rounded-2xl flex items-center justify-center shadow-xl">
+                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
               </div>
               <div>
-                <h2 className="text-3xl font-bold text-gray-900">
-                  Update Trade: {trade.symbol}
+                <h2 className="text-4xl font-bold bg-gradient-to-r from-emerald-600 to-cyan-600 bg-clip-text text-transparent">
+                  Update Trade
                 </h2>
-                <p className="text-lg text-gray-600 mt-1">
-                  Modify trade details and upload closing images
+                <p className="text-xl text-gray-600 mt-2">
+                  Update {trade.symbol} status and add closing details
                 </p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="w-10 h-10 bg-white hover:bg-gray-50 border border-gray-200 rounded-full flex items-center justify-center transition-colors duration-200 shadow-sm"
+              className="w-12 h-12 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl flex items-center justify-center transition-colors duration-200 shadow-lg hover:shadow-xl"
             >
-              <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
         </div>
 
-        {/* Content */}
-        <div className="p-8 max-h-[calc(95vh-200px)] overflow-y-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Left Column - Trade Update Form */}
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                  <svg className="w-5 h-5 mr-2 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+        {/* Body */}
+        <div className="p-8 overflow-y-auto max-h-[calc(95vh-200px)]">
+          <div className="space-y-8">
+            {/* Trade Status */}
+            <div className="space-y-4">
+              <h3 className="text-2xl font-bold text-gray-900 flex items-center space-x-3">
+                <svg className="w-6 h-6 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Trade Status</span>
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {['PLANNED', 'ACTIVE', 'WIN', 'LOSS'].map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => setUpdateData(prev => ({ ...prev, status }))}
+                    className={`px-6 py-4 rounded-2xl font-semibold transition-all duration-300 flex items-center justify-center space-x-2 ${
+                      updateData.status === status
+                        ? getStatusButtonStyle(status)
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {getStatusIcon(status)}
+                    <span>{status}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Profit/Loss Display */}
+            {(updateData.status === 'WIN' || updateData.status === 'LOSS') && (
+              <div className="bg-gradient-to-r from-gray-50 via-blue-50 to-purple-50 rounded-3xl p-8 border border-gray-200">
+                <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center space-x-3">
+                  <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
                   </svg>
-                  Update Trade Details
+                  <span>Financial Impact</span>
                 </h3>
-              </div>
-
-              {/* Status Update */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Trade Status
-                </label>
-                <div className="grid grid-cols-2 gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setUpdateData(prev => ({ ...prev, status: 'WIN' }))}
-                    className={`p-5 rounded-xl border-2 transition-all duration-300 ${
-                      updateData.status === 'WIN'
-                        ? 'border-green-500 bg-green-50 shadow-lg'
-                        : 'border-gray-200 bg-white hover:border-green-300 hover:bg-green-50'
-                    }`}
-                  >
-                    <div className="text-center">
-                      <div className={`w-12 h-12 mx-auto mb-3 rounded-xl flex items-center justify-center ${
-                        updateData.status === 'WIN'
-                          ? 'bg-green-500 text-white'
-                          : 'bg-gray-200 text-gray-600'
-                      }`}>
-                        🏆
-                      </div>
-                      <p className={`font-bold ${
-                        updateData.status === 'WIN'
-                          ? 'text-green-700'
-                          : 'text-gray-700'
-                      }`}>
-                        Win
-                      </p>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setUpdateData(prev => ({ ...prev, status: 'LOSS' }))}
-                    className={`p-5 rounded-xl border-2 transition-all duration-300 ${
-                      updateData.status === 'LOSS'
-                        ? 'border-red-500 bg-red-50 shadow-lg'
-                        : 'border-gray-200 bg-white hover:border-red-300 hover:bg-red-50'
-                    }`}
-                  >
-                    <div className="text-center">
-                      <div className={`w-12 h-12 mx-auto mb-3 rounded-xl flex items-center justify-center ${
-                        updateData.status === 'LOSS'
-                          ? 'bg-red-500 text-white'
-                          : 'bg-gray-200 text-gray-600'
-                      }`}>
-                        📉
-                      </div>
-                      <p className={`font-bold ${
-                        updateData.status === 'LOSS'
-                          ? 'text-red-700'
-                          : 'text-gray-700'
-                      }`}>
-                        Loss
-                      </p>
-                    </div>
-                  </button>
-                </div>
-              </div>
-
-              {/* Profit/Loss Input - Only show when WIN or LOSS is selected */}
-              {(updateData.status === 'WIN' || updateData.status === 'LOSS') && (
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-3">
-                    <span className="flex items-center">
-                      <svg className="w-4 h-4 mr-2 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                      </svg>
-                      {updateData.status === 'WIN' ? 'Profit Amount ($)' : 'Loss Amount ($)'}
-                      <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
-                        Auto-calculated
-                      </span>
-                    </span>
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <span className="text-gray-500 text-lg">$</span>
-                    </div>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={updateData.profitDollars}
-                      readOnly
-                      className={`w-full pl-8 pr-4 py-4 border rounded-xl text-lg transition-all duration-200 cursor-not-allowed ${
-                        updateData.status === 'WIN'
-                          ? 'bg-green-50 border-green-300 text-green-800'
-                          : 'bg-red-50 border-red-300 text-red-800'
-                      }`}
-                      placeholder="0.00"
-                    />
+                <div className="text-center">
+                  <div className={`text-6xl font-bold mb-4 ${updateData.status === 'WIN' ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {updateData.status === 'WIN' ? '+' : '-'}${Math.abs(updateData.profitDollars).toFixed(2)}
                   </div>
-                  <div className="mt-3 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                    <div className="flex items-start space-x-2">
-                      <svg className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <div className="text-sm">
-                        <p className="text-blue-800 font-medium mb-1">
-                          {updateData.status === 'WIN' ? 'Profit Auto-Calculated' : 'Loss Auto-Calculated'}
-                        </p>
-                        <p className="text-blue-700 text-xs">
-                          {updateData.status === 'WIN'
-                            ? `Using potential profit of $${(trade.profitDollars || 0).toFixed(2)} from original trade calculation. This amount will be added to your account balance.`
-                            : `Using potential loss of $${(trade.lossDollars || 0).toFixed(2)} from original trade calculation. This amount will be subtracted from your account balance.`
-                          }
-                        </p>
-                      </div>
-                    </div>
+                  <div className={`text-xl font-semibold ${updateData.status === 'WIN' ? 'text-emerald-700' : 'text-red-700'}`}>
+                    {updateData.status === 'WIN' ? 'Profit' : 'Loss'}
+                  </div>
+                  <div className="text-gray-600 mt-2">
+                    This amount will be automatically {updateData.status === 'WIN' ? 'added to' : 'deducted from'} your account balance
                   </div>
                 </div>
-              )}
-
-              {/* Notes Update */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Trade Notes & Analysis
-                </label>
-                <textarea
-                  value={updateData.notes}
-                  onChange={(e) => setUpdateData(prev => ({ ...prev, notes: e.target.value }))}
-                  rows={6}
-                  className="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 focus:bg-white text-gray-900 transition-all duration-200 resize-none"
-                  placeholder="Update your trade analysis, add closing notes, lessons learned..."
-                />
               </div>
+            )}
 
-              {/* Tags Update */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Tags (comma separated)
-                </label>
+            {/* Notes Section */}
+            <div className="space-y-4">
+              <label className="flex items-center space-x-2 text-2xl font-bold text-gray-900">
+                <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-1l-4 4z" />
+                </svg>
+                <span>Update Notes</span>
+              </label>
+              <textarea
+                value={updateData.notes}
+                onChange={(e) => setUpdateData(prev => ({ ...prev, notes: e.target.value }))}
+                rows={6}
+                className="w-full px-6 py-4 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white/80 backdrop-blur-sm font-medium text-gray-700 shadow-lg transition-all duration-300 resize-none"
+                placeholder={`Add your ${updateData.status.toLowerCase()} notes, market analysis, lessons learned, or closing thoughts...`}
+              />
+            </div>
+
+            {/* Tags Section */}
+            <div className="space-y-4">
+              <label className="flex items-center space-x-2 text-2xl font-bold text-gray-900">
+                <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                </svg>
+                <span>Tags</span>
+              </label>
+              <input
+                type="text"
+                value={updateData.tags}
+                onChange={(e) => setUpdateData(prev => ({ ...prev, tags: e.target.value }))}
+                className="w-full px-6 py-4 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white/80 backdrop-blur-sm font-medium text-gray-700 shadow-lg transition-all duration-300"
+                placeholder="Add tags separated by commas (e.g., breakout, news-event, scalp)"
+              />
+            </div>
+
+            {/* Image Upload Section */}
+            <div className="space-y-4">
+              <label className="flex items-center space-x-2 text-2xl font-bold text-gray-900">
+                <svg className="w-6 h-6 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span>Closing Images</span>
+              </label>
+              <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center hover:border-purple-400 transition-colors duration-300 bg-gradient-to-br from-purple-50/50 to-indigo-50/50">
+                <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                <p className="text-xl font-semibold text-gray-700 mb-2">Upload Closing Screenshots</p>
+                <p className="text-gray-500 mb-4">Add charts, execution screenshots, or analysis images</p>
                 <input
-                  type="text"
-                  value={updateData.tags}
-                  onChange={(e) => setUpdateData(prev => ({ ...prev, tags: e.target.value }))}
-                  className="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 focus:bg-white text-gray-900 transition-all duration-200"
-                  placeholder="closed, profitable, lesson-learned, breakout"
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={(e) => e.target.files && handleImageUpload(Array.from(e.target.files))}
+                  className="hidden"
+                  id="image-upload"
                 />
-              </div>
-            </div>
-
-            {/* Right Column - Closing Images Upload */}
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                  <svg className="w-5 h-5 mr-2 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                <label
+                  htmlFor="image-upload"
+                  className="inline-flex items-center space-x-2 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl cursor-pointer"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                   </svg>
-                  Closing Images & Screenshots
-                </h3>
+                  <span>Choose Images</span>
+                </label>
               </div>
 
-              {/* Upload Area */}
-              <div
-                onDrop={(e) => {
-                  e.preventDefault();
-                  const files = Array.from(e.dataTransfer.files);
-                  const imageFiles = files.filter(file => file.type.startsWith('image/'));
-                  if (imageFiles.length > 0) {
-                    handleImageUpload(imageFiles);
-                  }
-                }}
-                onDragOver={(e) => e.preventDefault()}
-                className="border-2 border-dashed border-emerald-300 rounded-xl p-8 text-center hover:border-emerald-500 transition-colors duration-200 bg-emerald-50"
-              >
-                <div className="flex flex-col items-center space-y-4">
-                  <div className="w-12 h-12 bg-emerald-500/10 rounded-full flex items-center justify-center">
-                    <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                      Upload Closing Images
-                    </p>
-                    <p className="text-gray-600 dark:text-gray-400 mb-4">
-                      Add screenshots of your trade closure, P&L, or analysis
-                    </p>
-                    <label className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl font-semibold cursor-pointer transition-all duration-200 shadow-lg hover:shadow-xl">
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                      </svg>
-                      Choose Files
-                      <input
-                        type="file"
-                        multiple
-                        accept="image/*"
-                        onChange={(e) => {
-                          const files = Array.from(e.target.files || []);
-                          if (files.length > 0) {
-                            handleImageUpload(files);
-                          }
-                        }}
-                        className="hidden"
-                      />
-                    </label>
-                  </div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    JPG, PNG, GIF, WebP (Max 5MB each)
-                  </p>
-                </div>
-              </div>
-
-              {/* Uploaded Images Preview */}
+              {/* Image Preview */}
               {closingImages.length > 0 && (
-                <div>
-                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                    Closing Images ({closingImages.length})
-                  </h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    {closingImages.map((file, index) => (
-                      <div key={index} className="relative group">
-                        <div className="aspect-square bg-gray-100 dark:bg-gray-700 rounded-xl overflow-hidden">
-                          <img
-                            src={URL.createObjectURL(file)}
-                            alt={`Closing ${index + 1}`}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <button
-                          onClick={() => removeImage(index)}
-                          className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-lg"
-                        >
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-6">
+                  {closingImages.map((image, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={URL.createObjectURL(image)}
+                        alt={`Upload ${index + 1}`}
+                        className="w-full h-32 object-cover rounded-xl border border-gray-200 shadow-lg"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(index)}
+                        className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
-          </div>
 
-          {/* Action Buttons */}
-          <div className="flex space-x-4 mt-8 pt-6 border-t border-gray-200">
-            <button
-              onClick={onClose}
-              className="flex-1 px-6 py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-all duration-200 border border-gray-200"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-              className="flex-1 px-6 py-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? (
-                <div className="flex items-center justify-center space-x-2">
+            {/* Action Buttons */}
+            <div className="flex space-x-6 pt-8 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-8 py-4 rounded-2xl font-semibold transition-all duration-300 flex items-center justify-center space-x-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                <span>Cancel</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                className="flex-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-600 hover:via-teal-600 hover:to-cyan-600 text-white px-8 py-4 rounded-2xl font-semibold transition-all duration-300 shadow-xl hover:shadow-2xl flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? (
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  <span>Updating...</span>
-                </div>
-              ) : (
-                'Update Trade'
-              )}
-            </button>
+                ) : (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+                <span>{isSubmitting ? 'Updating...' : 'Update Trade'}</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>

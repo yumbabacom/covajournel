@@ -86,19 +86,50 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const {
       name,
+      description,
       marketType,
       setupConditions,
       entryRules,
       exitRules,
+      riskManagement,
       timeframe,
+      tradingStyle,
+      complexity,
+      expectedDrawdown,
+      minCapital,
+      sessionTiming,
       indicators,
       tags,
+      winRate,
+      maxRisk,
+      profitTarget,
+      avgHoldTime,
+      monthlyTarget,
+      backtestPeriod,
+      sharpeRatio,
+      maxConsecutiveLosses,
+      // Advanced fields
+      stopLossType,
+      takeProfitType,
+      positionSizing,
+      maxPositions,
+      correlationLimit,
+      drawdownLimit,
+      volatilityFilter,
+      newsFilter,
+      marketHours,
+      minVolume,
+      maxSpread,
+      backtestStartDate,
+      backtestEndDate,
+      commission,
+      slippage,
       images
     } = body;
 
-    // Validate required fields
-    if (!name || !marketType || !setupConditions || !entryRules || !exitRules || !timeframe) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    // Validate required fields - only check the essential ones
+    if (!name || !marketType || !tradingStyle) {
+      return NextResponse.json({ error: 'Missing required fields: name, market type, and trading style are required' }, { status: 400 });
     }
 
     const db = await getDatabase();
@@ -106,13 +137,44 @@ export async function POST(request: NextRequest) {
 
     const strategy = {
       name,
+      description: description || '',
       marketType,
-      setupConditions,
-      entryRules,
-      exitRules,
-      timeframe,
+      setupConditions: setupConditions || '',
+      entryRules: entryRules || '',
+      exitRules: exitRules || '',
+      riskManagement: riskManagement || '',
+      timeframe: timeframe || '',
+      tradingStyle: tradingStyle || '',
+      complexity: complexity || 'Intermediate',
+      expectedDrawdown: expectedDrawdown || '',
+      minCapital: minCapital || '',
+      sessionTiming: sessionTiming || '',
       indicators: indicators || [],
       tags: tags || [],
+      winRate: winRate || '',
+      maxRisk: maxRisk || '2',
+      profitTarget: profitTarget || '',
+      avgHoldTime: avgHoldTime || '',
+      monthlyTarget: monthlyTarget || '',
+      backtestPeriod: backtestPeriod || '',
+      sharpeRatio: sharpeRatio || '',
+      maxConsecutiveLosses: maxConsecutiveLosses || '',
+      // Advanced settings
+      stopLossType: stopLossType || 'percentage',
+      takeProfitType: takeProfitType || 'ratio',
+      positionSizing: positionSizing || 'fixed',
+      maxPositions: maxPositions || '3',
+      correlationLimit: correlationLimit || '0.7',
+      drawdownLimit: drawdownLimit || '15',
+      volatilityFilter: volatilityFilter || 'medium',
+      newsFilter: newsFilter !== undefined ? newsFilter : true,
+      marketHours: marketHours || 'any',
+      minVolume: minVolume || '',
+      maxSpread: maxSpread || '',
+      backtestStartDate: backtestStartDate || '',
+      backtestEndDate: backtestEndDate || '',
+      commission: commission || '0.1',
+      slippage: slippage || '0.05',
       images: images || [],
       userId: new ObjectId(user.userId),
       createdAt: new Date(),

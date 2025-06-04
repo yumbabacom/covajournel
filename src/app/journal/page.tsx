@@ -1,12 +1,33 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import TradeStatusManager from '../components/TradeStatusManager';
+import { useAuth } from '../components/AuthProvider';
 import UpdateTradeModal from '../components/UpdateTradeModal';
 import TradeDetailModal from '../components/TradeDetailModal';
-import { useAuth } from '../components/AuthProvider';
 import { useAccount } from '../components/AccountProvider';
+import { TradingJournalSkeleton } from '../components/SimpleLoading';
+import ErrorBoundary from '../components/ErrorBoundary';
+import ProfitCalendar from '../components/ProfitCalendar';
+import EditTradeModal from '../components/EditTradeModal';
+import { 
+  CalendarDaysIcon, 
+  CalendarIcon, 
+  TagIcon, 
+  ScaleIcon, 
+  ChartPieIcon, 
+  ArrowsRightLeftIcon, 
+  XMarkIcon, 
+  FaceFrownIcon, 
+  FaceSmileIcon, 
+  SparklesIcon,
+  NewspaperIcon,
+  EyeIcon,
+  PencilIcon,
+  TrashIcon,
+  ArrowPathIcon
+} from '@heroicons/react/24/outline'; // Assuming outline version, adjust if solid is used elsewhere
 
 interface Trade {
   id: string;
@@ -25,7 +46,7 @@ interface Trade {
   profitDollars: number;
   lossDollars: number;
   riskRewardRatio: number;
-  tradeDirection: string;
+  tradeDirection: 'LONG' | 'SHORT';
   status: string;
   notes: string;
   tags: string[];
@@ -39,6 +60,26 @@ interface Trade {
     marketType: string;
     timeframe: string;
   };
+  mood?: string;
+  confidence?: number;
+  marketCondition?: string;
+  createdAt: string;
+  updatedAt?: string; // Made optional
+}
+
+interface JournalEntry {
+  id: string;
+  date: string;
+  title: string;
+  content: string;
+  mood: string;
+  confidence: number;
+  tags: string[];
+  images?: string[];
+  trades?: string[];
+  marketCondition?: string;
+  lessons?: string;
+  goals?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -61,36 +102,176 @@ interface JournalStats {
   largestLossStreak: number;
   currentStreak: number;
   streakType: 'win' | 'loss' | 'none';
+  weeklyPerformance: { week: string; pnl: number }[];
+  monthlyPerformance: { month: string; pnl: number }[];
 }
 
+const moods = [
+  { 
+    value: 'excited', 
+    label: 'Excited', 
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+      </svg>
+    ), 
+    color: 'text-green-500' 
+  },
+  { 
+    value: 'confident', 
+    label: 'Confident', 
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ), 
+    color: 'text-blue-500' 
+  },
+  { 
+    value: 'calm', 
+    label: 'Calm', 
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+      </svg>
+    ), 
+    color: 'text-purple-500' 
+  },
+  { 
+    value: 'neutral', 
+    label: 'Neutral', 
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+      </svg>
+    ), 
+    color: 'text-gray-500' 
+  },
+  { 
+    value: 'anxious', 
+    label: 'Anxious', 
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+      </svg>
+    ), 
+    color: 'text-yellow-500' 
+  },
+  { 
+    value: 'frustrated', 
+    label: 'Frustrated', 
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    ), 
+    color: 'text-orange-500' 
+  },
+  { 
+    value: 'disappointed', 
+    label: 'Disappointed', 
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+      </svg>
+    ), 
+    color: 'text-red-500' 
+  },
+];
+
+const marketConditions = [
+  { 
+    value: 'trending', 
+    label: 'Trending', 
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+      </svg>
+    )
+  },
+  { 
+    value: 'ranging', 
+    label: 'Ranging', 
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
+      </svg>
+    )
+  },
+  { 
+    value: 'volatile', 
+    label: 'Volatile', 
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+      </svg>
+    )
+  },
+  { 
+    value: 'quiet', 
+    label: 'Quiet', 
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.5 12a5.5 5.5 0 01-11 0 5.5 5.5 0 0111 0z" />
+      </svg>
+    )
+  },
+  { 
+    value: 'news-driven', 
+    label: 'News Driven', 
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+      </svg>
+    )
+  },
+];
+
 export default function TradingJournal() {
-  const { user, logout, isLoading } = useAuth();
-  const { selectedAccount } = useAccount();
+  const { user, logout } = useAuth();
+  const { selectedAccount, updateAccount, refreshAccounts } = useAccount();
   const router = useRouter();
   const [trades, setTrades] = useState<Trade[]>([]);
+  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState<'overview' | 'trades' | 'entries' | 'analytics' | 'insights'>('overview');
   const [filter, setFilter] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [updateModalTrade, setUpdateModalTrade] = useState<Trade | null>(null);
-  const [viewMode, setViewMode] = useState<'cards' | 'table' | 'analytics'>('cards');
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [sortBy, setSortBy] = useState<'date' | 'profit' | 'symbol' | 'rr'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [stats, setStats] = useState<JournalStats | null>(null);
+  const [showNewEntryModal, setShowNewEntryModal] = useState(false);
+  const [selectedDateRange, setSelectedDateRange] = useState('7d');
+  const [editModalTrade, setEditModalTrade] = useState<Trade | null>(null);
 
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (!user) {
       router.push('/');
       return;
     }
 
     if (user && selectedAccount) {
       fetchTrades();
+      fetchJournalEntries();
     }
-  }, [user, isLoading, router, selectedAccount]);
+  }, [user, router, selectedAccount]);
 
-  const calculateStats = (tradesData: Trade[]): JournalStats => {
+  const calculateWeeklyPerformance = (trades: Trade[]) => {
+    // Implementation for weekly performance calculation
+    return [];
+  };
+
+  const calculateMonthlyPerformance = (trades: Trade[]) => {
+    // Implementation for monthly performance calculation
+    return [];
+  };
+
+  const calculatedStats = useMemo(() => {
+    const calculateStats = (tradesData: Trade[]): JournalStats => {
     if (tradesData.length === 0) {
       return {
         totalTrades: 0,
@@ -110,6 +291,8 @@ export default function TradingJournal() {
         largestLossStreak: 0,
         currentStreak: 0,
         streakType: 'none',
+          weeklyPerformance: [],
+          monthlyPerformance: [],
       };
     }
 
@@ -120,40 +303,9 @@ export default function TradingJournal() {
     const totalProfit = winningTrades.reduce((sum, t) => sum + t.profitDollars, 0);
     const totalLoss = losingTrades.reduce((sum, t) => sum + t.lossDollars, 0);
 
-    // Calculate streaks
-    let currentStreak = 0;
-    let streakType: 'win' | 'loss' | 'none' = 'none';
-    let largestWinStreak = 0;
-    let largestLossStreak = 0;
-    let tempWinStreak = 0;
-    let tempLossStreak = 0;
-
-    const sortedClosedTrades = [...closedTrades].sort((a, b) =>
-      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-    );
-
-    for (let i = 0; i < sortedClosedTrades.length; i++) {
-      const trade = sortedClosedTrades[i];
-      const isWin = trade.profitDollars > trade.lossDollars;
-
-      if (isWin) {
-        tempWinStreak++;
-        tempLossStreak = 0;
-        largestWinStreak = Math.max(largestWinStreak, tempWinStreak);
-        if (i === sortedClosedTrades.length - 1) {
-          currentStreak = tempWinStreak;
-          streakType = 'win';
-        }
-      } else {
-        tempLossStreak++;
-        tempWinStreak = 0;
-        largestLossStreak = Math.max(largestLossStreak, tempLossStreak);
-        if (i === sortedClosedTrades.length - 1) {
-          currentStreak = tempLossStreak;
-          streakType = 'loss';
-        }
-      }
-    }
+      // Calculate weekly and monthly performance
+      const weeklyPerf = calculateWeeklyPerformance(closedTrades);
+      const monthlyPerf = calculateMonthlyPerformance(closedTrades);
 
     return {
       totalTrades: tradesData.length,
@@ -169,160 +321,715 @@ export default function TradingJournal() {
       profitFactor: totalLoss > 0 ? totalProfit / totalLoss : totalProfit > 0 ? Infinity : 0,
       avgWin: winningTrades.length > 0 ? totalProfit / winningTrades.length : 0,
       avgLoss: losingTrades.length > 0 ? totalLoss / losingTrades.length : 0,
-      largestWinStreak,
-      largestLossStreak,
-      currentStreak,
-      streakType,
+        largestWinStreak: 0,
+        largestLossStreak: 0,
+        currentStreak: 0,
+        streakType: 'none',
+        weeklyPerformance: weeklyPerf,
+        monthlyPerformance: monthlyPerf,
     };
-  };
+    };
+
+    return calculateStats(trades);
+  }, [trades]);
 
   const fetchTrades = async () => {
     try {
       const token = localStorage.getItem('token');
-      if (!token) {
-        setError('No authentication token found');
-        return;
-      }
+      if (!token || !selectedAccount) return;
 
-      if (!selectedAccount) {
-        setError('No account selected');
-        return;
-      }
-
-      const url = `/api/trades?accountId=${selectedAccount.id}`;
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+      const response = await fetch(`/api/trades?accountId=${selectedAccount.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
       });
 
       if (response.ok) {
         const data = await response.json();
-        setTrades(data.trades);
-        setStats(calculateStats(data.trades));
-      } else {
-        const errorData = await response.json();
-        setError(errorData.message || 'Failed to fetch trades');
+        setTrades(data.trades || []);
       }
     } catch (error) {
-      setError('An error occurred while fetching trades');
+      setError('Failed to fetch trades');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleStatusUpdate = async (tradeId: string, newStatus: string) => {
+  const fetchJournalEntries = async () => {
     try {
       const token = localStorage.getItem('token');
-      if (!token) throw new Error('No authentication token');
+      if (!token || !selectedAccount) return;
 
-      const response = await fetch(`/api/trades/${tradeId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status: newStatus }),
+      const response = await fetch(`/api/journal?accountId=${selectedAccount.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
       });
 
       if (response.ok) {
-        // Update local state
-        setTrades(prev => prev.map(trade =>
-          trade.id === tradeId ? { ...trade, status: newStatus } : trade
-        ));
-        // Recalculate stats
-        const updatedTrades = trades.map(trade =>
-          trade.id === tradeId ? { ...trade, status: newStatus } : trade
-        );
-        setStats(calculateStats(updatedTrades));
-      } else {
-        throw new Error('Failed to update status');
+        const data = await response.json();
+        setJournalEntries(data.entries || []);
       }
     } catch (error) {
-      console.error('Error updating trade status:', error);
+      console.error('Failed to fetch journal entries:', error);
     }
   };
 
-  const handleTradeUpdate = async (tradeId: string, updateData: any) => {
+  const handleUpdateTrade = async (tradeId: string, updateData: any) => {
+    console.log('=== UPDATE TRADE START ===');
+    console.log('Trade ID:', tradeId);
+    console.log('Update data:', updateData);
+    
     try {
-      const token = localStorage.getItem('token');
-      if (!token) throw new Error('No authentication token');
-
       const response = await fetch(`/api/trades/${tradeId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify(updateData),
+        body: JSON.stringify(updateData)
       });
 
-      if (response.ok) {
-        const result = await response.json();
-
-        // Update local state with the updated trade
-        setTrades(prev => prev.map(trade =>
-          trade.id === tradeId ? { ...trade, ...result.trade } : trade
-        ));
-
-        // Show success message if balance was updated
-        if (result.balanceUpdated) {
-          const profitLoss = result.profitLoss;
-          const message = updateData.status === 'WIN'
-            ? `🏆 Trade marked as WIN! +$${Math.abs(profitLoss).toFixed(2)} added to account balance.`
-            : updateData.status === 'LOSS'
-            ? `📉 Trade marked as LOSS. -$${Math.abs(profitLoss).toFixed(2)} deducted from account balance.`
-            : 'Trade updated successfully.';
-
-          // You can replace this with a toast notification
-          alert(message);
-        }
-
-        return result;
-      } else {
-        throw new Error('Failed to update trade');
+      console.log('Update API Response Status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Update API Error Response:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
+
+      const result = await response.json();
+      console.log('Update API Success Response:', result);
+      
+      // ✅ REAL-TIME UPDATES: Refresh all data immediately
+      await Promise.all([
+        fetchTrades(),
+        fetchJournalEntries()
+      ]);
+
+      // ✅ REFRESH ACCOUNTS if balance was updated by backend
+      if (result.balanceUpdated && selectedAccount) {
+        await refreshAccounts();
+        
+        // ✅ BROADCAST BALANCE UPDATE EVENT
+        window.dispatchEvent(new CustomEvent('accountBalanceUpdated', { 
+          detail: { 
+            accountId: selectedAccount.id, 
+            pnlAmount: result.pnlAmount,
+            tradeStatus: updateData.status 
+          } 
+        }));
+      }
+
+      // ✅ NOTIFY OTHER PAGES TO REFRESH
+      window.dispatchEvent(new CustomEvent('tradesUpdated', { 
+        detail: { action: 'update', tradeId, updateData } 
+      }));
+
+      alert('Trade updated successfully!');
+      setUpdateModalTrade(null);
+      
     } catch (error) {
-      console.error('Error updating trade:', error);
+      console.error('=== UPDATE TRADE ERROR ===');
+      console.error('Error object:', error);
+      alert(`Failed to update trade: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const updateAccountBalance = async (updateData: any) => {
+    if (!selectedAccount) return;
+    
+    try {
+      let balanceChange = 0;
+      
+      // Calculate balance change based on trade status
+      if (updateData.status === 'WIN' && updateData.profitDollars) {
+        balanceChange = updateData.profitDollars;
+      } else if (updateData.status === 'LOSS' && updateData.profitDollars) {
+        // For LOSS trades, profitDollars contains the loss amount as positive value
+        balanceChange = -Math.abs(updateData.profitDollars);
+      } else {
+        console.log('No profit/loss amount found, skipping balance update');
+        return;
+      }
+      
+      const newBalance = selectedAccount.currentBalance + balanceChange;
+      
+      console.log('Updating account balance:', {
+        status: updateData.status,
+        currentBalance: selectedAccount.currentBalance,
+        balanceChange,
+        newBalance,
+        profitDollars: updateData.profitDollars
+      });
+      
+      await updateAccount(selectedAccount.id, { currentBalance: newBalance });
+      
+      // ✅ NOTIFY ACCOUNT BALANCE UPDATE
+      window.dispatchEvent(new CustomEvent('accountBalanceUpdated', { 
+        detail: { accountId: selectedAccount.id, newBalance } 
+      }));
+      
+    } catch (error) {
+      console.error('Failed to update account balance:', error);
       throw error;
     }
   };
 
-  const handleTradeDelete = async (tradeId: string) => {
+  const handleEditTrade = async (tradeId: string, updatedData: any) => {
+    console.log('=== EDIT TRADE START ===');
+    console.log('Trade ID:', tradeId);
+    console.log('Update data:', updatedData);
+    
     try {
-      const token = localStorage.getItem('token');
-      if (!token) throw new Error('No authentication token');
-
       const response = await fetch(`/api/trades/${tradeId}`, {
-        method: 'DELETE',
+        method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
+        body: JSON.stringify(updatedData)
       });
 
-      if (response.ok) {
-        // Update local state
-        const updatedTrades = trades.filter(trade => trade.id !== tradeId);
-        setTrades(updatedTrades);
-        setStats(calculateStats(updatedTrades));
-      } else {
-        throw new Error('Failed to delete trade');
+      console.log('Edit API Response Status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Edit API Error Response:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
+
+      const result = await response.json();
+      console.log('Edit API Success Response:', result);
+      
+      // ✅ REAL-TIME UPDATES: Refresh all data
+      await Promise.all([
+        fetchTrades(),
+        fetchJournalEntries()
+      ]);
+
+      // ✅ UPDATE ACCOUNT BALANCE if needed
+      if (selectedAccount && (updatedData.status === 'WIN' || updatedData.status === 'LOSS')) {
+        try {
+          await updateAccountBalance(updatedData);
+        } catch (balanceError) {
+          console.warn('Account balance update failed:', balanceError);
+        }
+      }
+
+      // ✅ NOTIFY OTHER PAGES TO REFRESH
+      window.dispatchEvent(new CustomEvent('tradesUpdated', { 
+        detail: { action: 'edit', tradeId, updatedData } 
+      }));
+
+      alert('Trade updated successfully!');
+      setEditModalTrade(null);
+      
     } catch (error) {
-      console.error('Error deleting trade:', error);
+      console.error('=== EDIT TRADE ERROR ===');
+      console.error('Error object:', error);
+      alert(`Failed to edit trade: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
-  const filteredAndSortedTrades = trades
-    .filter(trade => {
-      const matchesFilter = filter === 'ALL' || trade.status === filter;
-      const matchesSearch = trade.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  if (loading) {
+    return <TradingJournalSkeleton />;
+  }
+
+  return (
+    <ErrorBoundary>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-blue-50">
+        {/* Beautiful Header */}
+        <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200/50 shadow-lg">
+          <div className="w-full px-4 sm:px-6 lg:px-8">
+            <div className="py-10">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-6">
+                  <div className="relative">
+                    <div className="w-16 h-16 bg-gradient-to-br from-emerald-400 via-teal-500 to-blue-500 rounded-3xl flex items-center justify-center shadow-2xl">
+                      <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <div className="absolute -top-1 -right-1 w-6 h-6 bg-green-400 rounded-full border-3 border-white flex items-center justify-center">
+                      <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                    </div>
+                  </div>
+                  <div>
+                    <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-emerald-700 bg-clip-text text-transparent">
+                      Trading Journal
+                    </h1>
+                    <p className="text-gray-600 mt-2 text-lg">Track your trades, emotions, and insights with precision</p>
+                    <div className="flex items-center space-x-4 mt-3">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                        <span className="text-sm text-gray-500">Live Data</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <span className="text-sm text-gray-500">Real-time Analytics</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <button
+                    onClick={() => router.push('/add-trade')}
+                    className="group relative bg-gradient-to-r from-blue-500 via-blue-600 to-indigo-600 hover:from-blue-600 hover:via-blue-700 hover:to-indigo-700 text-white px-8 py-4 rounded-2xl font-semibold transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 transform"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <svg className="w-5 h-5 group-hover:rotate-12 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                      </svg>
+                      <span>Add Trade</span>
+                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-2xl opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
+                  </button>
+                  <button
+                    onClick={() => setShowNewEntryModal(true)}
+                    data-new-entry
+                    className="group relative bg-gradient-to-r from-emerald-500 via-teal-500 to-green-500 hover:from-emerald-600 hover:via-teal-600 hover:to-green-600 text-white px-8 py-4 rounded-2xl font-semibold transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 transform"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <svg className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      <span>New Entry</span>
+                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-green-500 rounded-2xl opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Enhanced Navigation Tabs */}
+              <div className="mt-10">
+                <nav className="flex space-x-2 bg-white/60 backdrop-blur-md rounded-3xl p-2 shadow-lg border border-white/20">
+                  {[
+                    { 
+                      id: 'overview', 
+                      label: 'Overview', 
+                      icon: (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                        </svg>
+                      ), 
+                      gradient: 'from-purple-500 to-pink-500' 
+                    },
+                    { 
+                      id: 'trades', 
+                      label: 'Trades', 
+                      icon: (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                        </svg>
+                      ), 
+                      gradient: 'from-blue-500 to-indigo-500' 
+                    },
+                    { 
+                      id: 'entries', 
+                      label: 'Journal', 
+                      icon: (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                        </svg>
+                      ), 
+                      gradient: 'from-emerald-500 to-teal-500' 
+                    },
+                    { 
+                      id: 'analytics', 
+                      label: 'Analytics', 
+                      icon: (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                      ), 
+                      gradient: 'from-orange-500 to-red-500' 
+                    },
+                    { 
+                      id: 'insights', 
+                      label: 'Insights', 
+                      icon: (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                        </svg>
+                      ), 
+                      gradient: 'from-yellow-500 to-orange-500' 
+                    },
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id as any)}
+                      className={`relative flex items-center space-x-3 px-8 py-4 rounded-2xl font-semibold transition-all duration-300 ${
+                        activeTab === tab.id
+                          ? `bg-gradient-to-r ${tab.gradient} text-white shadow-xl scale-105`
+                          : 'text-gray-700 hover:text-gray-900 hover:bg-white/80 hover:shadow-md'
+                      }`}
+                    >
+                      <span className="text-xl">{tab.icon}</span>
+                      <span className="font-medium">{tab.label}</span>
+                      {activeTab === tab.id && (
+                        <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent rounded-2xl"></div>
+                      )}
+                    </button>
+                  ))}
+                </nav>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-12">
+          {activeTab === 'overview' && <OverviewSection stats={calculatedStats} trades={trades} entries={journalEntries} />}
+          {activeTab === 'trades' && <TradesSection 
+            trades={trades} 
+            onEditTrade={setUpdateModalTrade} 
+            fetchTrades={fetchTrades} 
+            fetchJournalEntries={fetchJournalEntries} 
+            selectedAccount={selectedAccount} 
+            updateAccountBalance={updateAccountBalance} 
+          />}
+          {activeTab === 'entries' && <JournalEntriesSection entries={journalEntries} />}
+          {activeTab === 'analytics' && <AnalyticsSection stats={calculatedStats} trades={trades} />}
+          {activeTab === 'insights' && <InsightsSection trades={trades} entries={journalEntries} />}
+        </div>
+
+        {/* New Entry Modal */}
+        {showNewEntryModal && (
+          <NewJournalEntryModal
+            onClose={() => setShowNewEntryModal(false)}
+            onSave={(entry) => {
+              setJournalEntries([entry, ...journalEntries]);
+              setShowNewEntryModal(false);
+            }}
+          />
+        )}
+
+        {/* Trade Detail Modal */}
+        {selectedTrade && (
+          <TradeDetailModal
+            trade={selectedTrade}
+            onClose={() => setSelectedTrade(null)}
+            onEdit={(tradeFromModal) => {
+              // Ensure the trade object has all required properties and preserve the id
+              console.log('Main component TradeDetailModal onEdit called with:', { tradeFromModal, selectedTrade });
+              const completeTradeData = {
+                ...selectedTrade, // Use the selectedTrade as base to ensure id is preserved
+                ...tradeFromModal, // Override with any updates from modal
+                category: tradeFromModal.category || selectedTrade.category || 'FOREX',
+                id: selectedTrade.id // Explicitly ensure id is preserved
+              } as Trade;
+              console.log('Main component complete trade data being passed to setUpdateModalTrade:', completeTradeData);
+              setUpdateModalTrade(completeTradeData);
+              setSelectedTrade(null);
+            }}
+          />
+        )}
+
+        {/* Update Trade Modal */}
+        {updateModalTrade && (
+          <UpdateTradeModal
+            trade={updateModalTrade}
+            isOpen={!!updateModalTrade}
+            onClose={() => setUpdateModalTrade(null)}
+            onUpdate={handleUpdateTrade}
+          />
+        )}
+
+        {/* Edit Trade Modal */}
+        {editModalTrade && (
+          <EditTradeModal
+            trade={editModalTrade}
+            onClose={() => setEditModalTrade(null)}
+            onSave={handleEditTrade}
+          />
+        )}
+      </div>
+    </ErrorBoundary>
+  );
+}
+
+// Overview Section Component
+function OverviewSection({ stats, trades, entries }: { stats: JournalStats; trades: Trade[]; entries: JournalEntry[] }) {
+  const recentTrades = trades.slice(0, 5);
+  const recentEntries = entries.slice(0, 3);
+
+  return (
+    <div className="space-y-10">
+      {/* Quick Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="group relative bg-white/90 backdrop-blur-sm rounded-3xl p-8 shadow-xl border border-gray-100/50 hover:shadow-2xl transition-all duration-300 hover:scale-105 transform">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-indigo-500/5 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div className="relative">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Total Trades</p>
+                <p className="text-4xl font-bold text-gray-900 mt-3">{stats.totalTrades}</p>
+                <div className="flex items-center mt-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
+                  <span className="text-xs text-gray-500">All time</span>
+                </div>
+              </div>
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="group relative bg-white/90 backdrop-blur-sm rounded-3xl p-8 shadow-xl border border-gray-100/50 hover:shadow-2xl transition-all duration-300 hover:scale-105 transform">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div className="relative">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Win Rate</p>
+                <p className="text-4xl font-bold text-emerald-600 mt-3">{stats.winRate.toFixed(1)}%</p>
+                <div className="flex items-center mt-2">
+                  <div className="w-2 h-2 bg-emerald-500 rounded-full mr-2"></div>
+                  <span className="text-xs text-gray-500">{stats.winningTrades}W / {stats.losingTrades}L</span>
+                </div>
+              </div>
+              <div className="w-16 h-16 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="group relative bg-white/90 backdrop-blur-sm rounded-3xl p-8 shadow-xl border border-gray-100/50 hover:shadow-2xl transition-all duration-300 hover:scale-105 transform">
+          <div className={`absolute inset-0 bg-gradient-to-br ${stats.netPnL >= 0 ? 'from-emerald-500/5 to-green-500/5' : 'from-red-500/5 to-pink-500/5'} rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
+          <div className="relative">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Net P&L</p>
+                <p className={`text-4xl font-bold mt-3 ${stats.netPnL >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                  {stats.netPnL >= 0 ? '+' : ''}${stats.netPnL.toFixed(2)}
+                </p>
+                <div className="flex items-center mt-2">
+                  <div className={`w-2 h-2 ${stats.netPnL >= 0 ? 'bg-emerald-500' : 'bg-red-500'} rounded-full mr-2`}></div>
+                  <span className="text-xs text-gray-500">Total return</span>
+                </div>
+              </div>
+              <div className={`w-16 h-16 bg-gradient-to-br ${stats.netPnL >= 0 ? 'from-emerald-100 to-emerald-200' : 'from-red-100 to-red-200'} rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>
+                <svg className={`w-8 h-8 ${stats.netPnL >= 0 ? 'text-emerald-600' : 'text-red-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="group relative bg-white/90 backdrop-blur-sm rounded-3xl p-8 shadow-xl border border-gray-100/50 hover:shadow-2xl transition-all duration-300 hover:scale-105 transform">
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-pink-500/5 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div className="relative">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Journal Entries</p>
+                <p className="text-4xl font-bold text-purple-600 mt-3">{entries.length}</p>
+                <div className="flex items-center mt-2">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full mr-2"></div>
+                  <span className="text-xs text-gray-500">Psychology tracking</span>
+                </div>
+              </div>
+              <div className="w-16 h-16 bg-gradient-to-br from-purple-100 to-purple-200 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Activity */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+        {/* Recent Trades */}
+        <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-gray-100/50">
+          <div className="p-8 border-b border-gray-100/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl flex items-center justify-center">
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">Recent Trades</h3>
+              </div>
+              <span className="text-sm text-gray-500">Last 5 trades</span>
+            </div>
+          </div>
+          <div className="p-8 space-y-6">
+            {recentTrades.length > 0 ? recentTrades.map((trade) => (
+              <div key={trade.id} className="group flex items-center justify-between p-6 bg-gradient-to-r from-gray-50/50 to-white/50 rounded-2xl border border-gray-100 hover:shadow-lg transition-all duration-300">
+                <div className="flex items-center space-x-4">
+                  <div className={`w-4 h-4 rounded-full ${
+                    trade.status === 'CLOSED' ? 'bg-emerald-500' : 
+                    trade.status === 'ACTIVE' ? 'bg-blue-500' : 'bg-yellow-500'
+                  } group-hover:scale-125 transition-transform duration-300`}></div>
+                  <div>
+                    <p className="font-bold text-gray-900 text-lg">{trade.symbol}</p>
+                    <div className="flex items-center space-x-2 mt-1">
+                      <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
+                        trade.tradeDirection === 'LONG' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                      }`}>
+                        {trade.tradeDirection === 'LONG' ? (
+                          <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
+                          </svg>
+                        )} {trade.tradeDirection}
+                      </span>
+                      <span className="text-sm text-gray-600">{trade.category}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className={`font-bold text-lg ${((trade.profitDollars || 0) - (trade.lossDollars || 0)) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {((trade.profitDollars || 0) - (trade.lossDollars || 0)) >= 0 ? '+' : ''}${((trade.profitDollars || 0) - (trade.lossDollars || 0)).toFixed(2)}
+                  </p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {new Date(trade.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </p>
+                </div>
+              </div>
+            )) : (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                  </svg>
+                </div>
+                <p className="text-gray-500 font-medium">No trades yet</p>
+                <p className="text-sm text-gray-400 mt-1">Start by adding your first trade</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Recent Journal Entries */}
+        <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-gray-100/50">
+          <div className="p-8 border-b border-gray-100/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-purple-100 to-purple-200 rounded-xl flex items-center justify-center">
+                  <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">Recent Journal Entries</h3>
+              </div>
+              <span className="text-sm text-gray-500">Latest insights</span>
+            </div>
+          </div>
+          <div className="p-8 space-y-6">
+            {recentEntries.length > 0 ? recentEntries.map((entry) => (
+              <div key={entry.id} className="group p-6 bg-gradient-to-r from-gray-50/50 to-white/50 rounded-2xl border border-gray-100 hover:shadow-lg transition-all duration-300">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-bold text-gray-900 text-lg group-hover:text-purple-600 transition-colors duration-300">{entry.title}</h4>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-3xl">
+                      {moods.find(m => m.value === entry.mood)?.icon || '😐'}
+                    </span>
+                    <div className="flex space-x-1">
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <div
+                          key={i}
+                          className={`w-2 h-2 rounded-full transition-colors duration-300 ${
+                            i <= entry.confidence ? 'bg-emerald-500' : 'bg-gray-200'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <p className="text-gray-700 line-clamp-2 leading-relaxed">{entry.content}</p>
+                <div className="flex items-center justify-between mt-4">
+                  <div className="flex flex-wrap gap-2">
+                    {(entry.tags || []).slice(0, 2).map((tag, index) => (
+                      <span
+                        key={index}
+                        className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium"
+                      >
+                        #{tag}
+                      </span>
+                    ))}
+                    {(entry.tags || []).length > 2 && (
+                      <span className="text-xs text-gray-500">+{(entry.tags || []).length - 2} more</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 font-medium">
+                    {new Date(entry.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </p>
+                </div>
+              </div>
+            )) : (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <p className="text-gray-500 font-medium">No journal entries yet</p>
+                <p className="text-sm text-gray-400 mt-1">Start tracking your trading psychology</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Trades Section Component
+function TradesSection({ 
+  trades, 
+  onEditTrade, 
+  fetchTrades, 
+  fetchJournalEntries, 
+  selectedAccount, 
+  updateAccountBalance 
+}: { 
+  trades: Trade[]; 
+  onEditTrade: (trade: Trade) => void;
+  fetchTrades: () => Promise<void>;
+  fetchJournalEntries: () => Promise<void>;
+  selectedAccount: any;
+  updateAccountBalance: (updateData: any) => Promise<void>;
+}) {
+  const [filteredTrades, setFilteredTrades] = useState<Trade[]>(trades);
+  const [filterStatus, setFilterStatus] = useState('ALL');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState<'date' | 'profit' | 'symbol' | 'rr'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
+  const [editModalTrade, setEditModalTrade] = useState<Trade | null>(null);
+  const [updateModalTrade, setUpdateModalTrade] = useState<Trade | null>(null);
+  const [deleteModalTrade, setDeleteModalTrade] = useState<Trade | null>(null);
+
+  // Filter and search trades
+  useEffect(() => {
+    let filtered = [...trades];
+
+    // Filter by status
+    if (filterStatus !== 'ALL') {
+      filtered = filtered.filter(trade => trade.status === filterStatus);
+    }
+
+    // Search by symbol or notes
+    if (searchTerm) {
+      filtered = filtered.filter(trade => 
+        trade.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            trade.notes.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           trade.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
-      return matchesFilter && matchesSearch;
-    })
-    .sort((a, b) => {
-      let aValue: any, bValue: any;
+        (trade.tags || []).some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+    }
+
+    // Sort trades
+    filtered.sort((a, b) => {
+      let aValue, bValue;
 
       switch (sortBy) {
         case 'date':
@@ -337,9 +1044,676 @@ export default function TradingJournal() {
           aValue = a.symbol;
           bValue = b.symbol;
           break;
-        case 'rr':
-          aValue = a.riskRewardRatio;
-          bValue = b.riskRewardRatio;
+        default:
+          return 0;
+      }
+
+      if (sortOrder === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+
+    setFilteredTrades(filtered);
+  }, [trades, filterStatus, searchTerm, sortBy, sortOrder]);
+
+  const handleDeleteTrade = async (tradeId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('No authentication token');
+
+      console.log('🗑️ DELETING TRADE - Starting comprehensive deletion process');
+      console.log('Trade ID:', tradeId);
+
+      const response = await fetch(`/api/trades/${tradeId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const responseData = await response.json();
+        console.log('✅ Trade deleted from database:', responseData);
+
+        // ✅ COMPREHENSIVE REAL-TIME UPDATES
+        console.log('🔄 Starting comprehensive data refresh...');
+        
+        // 1. Refresh all trade data and journal entries
+        await Promise.all([
+          fetchTrades(),
+          fetchJournalEntries()
+        ]);
+        console.log('✅ Trades and journal entries refreshed');
+
+        // 2. Trigger recalculation of statistics by refreshing the calculatedStats
+        // This will automatically update:
+        // - Total trade counts
+        // - Win/Loss ratios
+        // - P&L calculations
+        // - Performance metrics
+        // - Streak calculations
+        // - All dashboard metrics
+        console.log('📊 Statistics will be recalculated on next render');
+
+        // 3. Close any open modals immediately
+        setDeleteModalTrade(null);
+        setSelectedTrade(null);
+        setEditModalTrade(null);
+        setUpdateModalTrade(null);
+
+        // 4. ✅ NOTIFY ALL COMPONENTS ACROSS THE ENTIRE PROJECT
+        console.log('📡 Broadcasting deletion events to all components...');
+        
+        // Main deletion event
+        window.dispatchEvent(new CustomEvent('tradesUpdated', { 
+          detail: { 
+            action: 'delete', 
+            tradeId,
+            timestamp: new Date().toISOString(),
+            source: 'journal'
+          } 
+        }));
+
+        // Specific events for different components
+        window.dispatchEvent(new CustomEvent('tradeDeleted', { 
+          detail: { 
+            tradeId,
+            deletedTrade: responseData.deletedTrade,
+            timestamp: new Date().toISOString()
+          } 
+        }));
+
+        // Dashboard refresh event
+        window.dispatchEvent(new CustomEvent('dashboardDataUpdate', { 
+          detail: { 
+            action: 'tradeDeleted',
+            tradeId,
+            timestamp: new Date().toISOString()
+          } 
+        }));
+
+        // P&L recalculation event
+        window.dispatchEvent(new CustomEvent('pnlRecalculate', { 
+          detail: { 
+            action: 'tradeDeleted',
+            tradeId,
+            timestamp: new Date().toISOString()
+          } 
+        }));
+
+        // Statistics update event
+        window.dispatchEvent(new CustomEvent('statisticsUpdate', { 
+          detail: { 
+            action: 'tradeDeleted',
+            tradeId,
+            timestamp: new Date().toISOString()
+          } 
+        }));
+
+        // Account balance may need updating if this was a WIN/LOSS trade
+        if (responseData.deletedTrade) {
+          window.dispatchEvent(new CustomEvent('accountBalanceRecalculate', { 
+            detail: { 
+              action: 'tradeDeleted',
+              tradeId,
+              accountId: responseData.deletedTrade.accountId,
+              timestamp: new Date().toISOString()
+            } 
+          }));
+        }
+
+        // 5. ✅ FORCE COMPONENT REFRESHES
+        // Force a complete re-render to ensure all components update
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('forceRefresh', { 
+            detail: { 
+              action: 'tradeDeleted',
+              tradeId,
+              timestamp: new Date().toISOString()
+            } 
+          }));
+        }, 100);
+
+        console.log('✅ All deletion events broadcast successfully');
+        alert(`Trade ${responseData.deletedTrade?.symbol || tradeId} deleted successfully!`);
+
+      } else {
+        const errorText = await response.text();
+        console.error('❌ Delete API Error Response:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+    } catch (error) {
+      console.error('❌ Error deleting trade:', error);
+      alert(`Failed to delete trade: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleEditTrade = async (tradeId: string, updatedData: any) => {
+    console.log('=== EDIT TRADE START ===');
+    console.log('Trade ID:', tradeId);
+    console.log('Update data:', updatedData);
+    
+    try {
+      const response = await fetch(`/api/trades/${tradeId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(updatedData)
+      });
+
+      console.log('Edit API Response Status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Edit API Error Response:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('Edit API Success Response:', result);
+      
+      // ✅ REAL-TIME UPDATES: Refresh all data
+      await Promise.all([
+        fetchTrades(),
+        fetchJournalEntries()
+      ]);
+
+      // ✅ UPDATE ACCOUNT BALANCE if needed
+      if (selectedAccount && (updatedData.status === 'WIN' || updatedData.status === 'LOSS')) {
+        try {
+          await updateAccountBalance(updatedData);
+        } catch (balanceError) {
+          console.warn('Account balance update failed:', balanceError);
+        }
+      }
+
+      // ✅ NOTIFY OTHER PAGES TO REFRESH
+      window.dispatchEvent(new CustomEvent('tradesUpdated', { 
+        detail: { action: 'edit', tradeId, updatedData } 
+      }));
+
+      alert('Trade updated successfully!');
+      setEditModalTrade(null);
+      
+    } catch (error) {
+      console.error('=== EDIT TRADE ERROR ===');
+      console.error('Error object:', error);
+      alert(`Failed to edit trade: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleUpdateTrade = async (tradeId: string, updateData: any) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('No authentication token');
+
+      console.log('Updating trade with ID:', tradeId);
+      console.log('Update data:', updateData);
+
+      const response = await fetch(`/api/trades/${tradeId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(updateData)
+      });
+
+      console.log('API Response status:', response.status);
+
+      if (response.ok) {
+        const responseData = await response.json();
+        console.log('Update successful:', responseData);
+        // Refresh trades list
+        window.location.reload();
+        setUpdateModalTrade(null);
+        return { success: true };
+      } else {
+        const errorText = await response.text();
+        console.error('API Error Response:', errorText);
+        
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { message: errorText };
+        }
+        
+        throw new Error(errorData.message || errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+      }
+    } catch (error: any) {
+      console.error('Error updating trade:', error);
+      throw error;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'WIN': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      case 'LOSS': return 'bg-red-100 text-red-800 border-red-200';
+      case 'ACTIVE': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'PLANNED': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'CLOSED': return 'bg-gray-100 text-gray-800 border-gray-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  const getDirectionColor = (direction: string) => {
+    return direction === 'LONG' ? 'text-emerald-600' : 'text-red-600';
+  };
+
+  const getPnLColor = (pnl: number) => {
+    return pnl >= 0 ? 'text-emerald-600' : 'text-red-600';
+  };
+
+  return (
+    <div className="space-y-8">
+      {/* Filters and Search */}
+      <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-gray-100/50 p-8">
+        <div className="flex flex-col lg:flex-row gap-6 items-center justify-between">
+          <div className="flex flex-col md:flex-row gap-4 w-full lg:w-auto">
+            {/* Status Filter */}
+            <div className="relative">
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="appearance-none px-6 py-4 pr-12 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white/80 backdrop-blur-sm font-medium text-gray-700 shadow-lg transition-all duration-300"
+              >
+                <option value="ALL">All Status</option>
+                <option value="PLANNED">Planned</option>
+                <option value="ACTIVE">Active</option>
+                <option value="WIN">Win</option>
+                <option value="LOSS">Loss</option>
+                <option value="CLOSED">Closed</option>
+              </select>
+              <div className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+            </div>
+          </div>
+
+            {/* Sort Options */}
+            <div className="relative">
+              <select
+                value={`${sortBy}-${sortOrder}`}
+                onChange={(e) => {
+                  const [field, order] = e.target.value.split('-');
+                  setSortBy(field as 'date' | 'profit' | 'symbol');
+                  setSortOrder(order as 'asc' | 'desc');
+                }}
+                className="appearance-none px-6 py-4 pr-12 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white/80 backdrop-blur-sm font-medium text-gray-700 shadow-lg transition-all duration-300"
+              >
+                <option value="date-desc">Newest First</option>
+                <option value="date-asc">Oldest First</option>
+                <option value="profit-desc">Highest P&L</option>
+                <option value="profit-asc">Lowest P&L</option>
+                <option value="symbol-asc">Symbol A-Z</option>
+                <option value="symbol-desc">Symbol Z-A</option>
+              </select>
+              <div className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+            </div>
+              </div>
+
+          {/* Search */}
+          <div className="relative w-full lg:w-80">
+            <input
+              type="text"
+              placeholder="Search trades, symbols, or tags..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-14 pr-6 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white/80 backdrop-blur-sm font-medium text-gray-700 shadow-lg transition-all duration-300"
+            />
+            <div className="absolute left-5 top-1/2 transform -translate-y-1/2">
+              <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-5 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-300"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+        </div>
+      </div>
+
+        {/* Results Count */}
+        <div className="mt-6 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+            <span className="text-sm font-medium text-gray-600">
+              Showing {filteredTrades.length} of {trades.length} trades
+            </span>
+                </div>
+          {filteredTrades.length > 0 && (
+            <div className="text-sm text-gray-500">
+              Total P&L: <span className={`font-bold ${filteredTrades.reduce((sum, t) => sum + ((t.profitDollars || 0) - (t.lossDollars || 0)), 0) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                {filteredTrades.reduce((sum, t) => sum + ((t.profitDollars || 0) - (t.lossDollars || 0)), 0) >= 0 ? '+' : ''}${filteredTrades.reduce((sum, t) => sum + ((t.profitDollars || 0) - (t.lossDollars || 0)), 0).toFixed(2)}
+                </span>
+              </div>
+          )}
+              </div>
+            </div>
+
+      {/* Trades Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+        {filteredTrades.map((trade) => {
+          // Fixed P&L calculation - profitDollars is the actual profit, don't subtract lossDollars
+          const profitValue = Number(trade.profitDollars) || 0;
+          const lossValue = Number(trade.lossDollars) || 0;
+          
+          // Use only profitDollars as the P&L (don't subtract lossDollars)
+          const pnl = profitValue;
+          
+          return (
+            <div
+              key={trade.id}
+              className="group relative bg-white/95 backdrop-blur-sm rounded-3xl p-8 shadow-xl border border-gray-100/60 hover:shadow-2xl transition-all duration-500 hover:scale-[1.02] transform hover:bg-white/100"
+            >
+              {/* Improved Gradient Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-50/40 via-purple-50/30 to-emerald-50/40 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+              
+              {/* Subtle Corner Accent */}
+              <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-indigo-500/10 to-transparent rounded-tr-3xl opacity-30 group-hover:opacity-60 transition-opacity duration-500"></div>
+
+              {/* Action Icons (top-right, hover/focus only) */}
+              <div className="absolute top-6 right-6 flex space-x-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity z-10">
+                <button
+                  onClick={() => setSelectedTrade(trade)}
+                  className="p-2 rounded-full bg-gray-50/90 hover:bg-indigo-100 text-gray-500 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm hover:shadow-md transition-all duration-300"
+                  aria-label="View"
+                  tabIndex={0}
+                >
+                  <EyeIcon className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setEditModalTrade(trade)}
+                  className="p-2 rounded-full bg-gray-50/90 hover:bg-blue-100 text-gray-500 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm hover:shadow-md transition-all duration-300"
+                  aria-label="Edit"
+                  tabIndex={0}
+                >
+                  <PencilIcon className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setUpdateModalTrade(trade)}
+                  className="p-2 rounded-full bg-gray-50/90 hover:bg-emerald-100 text-gray-500 hover:text-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm hover:shadow-md transition-all duration-300"
+                  aria-label="Update"
+                  tabIndex={0}
+                >
+                  <ArrowPathIcon className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setDeleteModalTrade(trade)}
+                  className="p-2 rounded-full bg-gray-50/90 hover:bg-red-100 text-gray-500 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 shadow-sm hover:shadow-md transition-all duration-300"
+                  aria-label="Delete"
+                  tabIndex={0}
+                >
+                  <TrashIcon className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Enhanced Header */}
+              <div className="relative flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-4">
+                  <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 ring-4 ring-white">
+                    <span className="text-white font-bold text-xl">
+                      {trade.symbol.split('/')[0].charAt(0)}
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 text-xl group-hover:text-indigo-600 transition-colors duration-300 cursor-pointer"
+                        onClick={() => setSelectedTrade(trade)}>
+                      {trade.symbol}
+                    </h3>
+                    <p className="text-sm text-gray-600 font-medium flex items-center mt-1">
+                      <span className={`w-2 h-2 rounded-full mr-2 ${trade.category === 'Forex' ? 'bg-blue-500' : trade.category === 'Crypto' ? 'bg-orange-500' : trade.category === 'Stocks' ? 'bg-green-500' : 'bg-purple-500'}`}></span>
+                      {trade.category}
+                    </p>
+                  </div>
+                </div>
+                <span className={`px-4 py-2 rounded-2xl text-xs font-bold border-2 ${getStatusColor(trade.status)} shadow-lg backdrop-blur-sm`}>
+                  {trade.status}
+                </span>
+              </div>
+
+              {/* Trade Details - Improved Layout */}
+              <div className="relative space-y-4 mb-6">
+                <div className="flex justify-between items-center p-4 bg-gray-50/80 rounded-xl backdrop-blur-sm border border-gray-100/50 shadow-sm">
+                  <div className="flex items-center space-x-2">
+                    <svg className={`w-4 h-4 ${trade.tradeDirection === 'LONG' ? 'text-green-500' : 'text-red-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={trade.tradeDirection === 'LONG' ? "M5 10l7-7m0 0l7 7m-7-7v18" : "M19 14l-7 7m0 0l-7-7m7 7V3"} />
+                    </svg>
+                    <span className="text-sm font-medium text-gray-600">Direction:</span>
+                  </div>
+                  <span className={`text-sm font-bold ${getDirectionColor(trade.tradeDirection)}`}>
+                    {trade.tradeDirection}
+                  </span>
+                </div>
+
+                {/* Price Information - Improved Layout */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-gray-50/80 rounded-xl p-3 text-center border border-gray-100/50 shadow-sm">
+                    <p className="text-xs text-gray-500 mb-1">Entry</p>
+                    <p className="font-bold text-gray-800">{trade.entryPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 5})}</p>
+                  </div>
+                  <div className="bg-gray-50/80 rounded-xl p-3 text-center border border-gray-100/50 shadow-sm">
+                    <p className="text-xs text-gray-500 mb-1">Exit</p>
+                    <p className="font-bold text-gray-800">{trade.exitPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 5})}</p>
+                  </div>
+                  <div className="bg-gray-50/80 rounded-xl p-3 text-center border border-gray-100/50 shadow-sm">
+                    <p className="text-xs text-gray-500 mb-1">Stop Loss</p>
+                    <p className="font-bold text-gray-800">{trade.stopLoss.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 5})}</p>
+                  </div>
+                </div>
+
+                {/* P&L Section - Visually Enhanced */}
+                <div className={`flex justify-between items-center p-4 rounded-xl ${pnl >= 0 ? 'bg-green-50 border border-green-100' : 'bg-red-50 border border-red-100'} shadow-sm`}>
+                  <div className="flex items-center space-x-2">
+                    <svg className={`w-5 h-5 ${pnl >= 0 ? 'text-green-500' : 'text-red-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={pnl >= 0 ? "M9 11l3 3L22 4" : "M6 18L18 6M6 6l12 12"} />
+                    </svg>
+                    <span className="text-sm font-medium text-gray-700">P&L:</span>
+                  </div>
+                  <span className={`text-base font-bold ${pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {pnl >= 0 ? '+' : ''}{pnl.toLocaleString(undefined, {style: 'currency', currency: 'USD'})}
+                  </span>
+                </div>
+
+                {/* Risk Information */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gray-50/80 rounded-xl p-3 text-center border border-gray-100/50 shadow-sm">
+                    <p className="text-xs text-gray-500 mb-1">Risk</p>
+                    <p className="font-bold text-gray-800">{trade.riskPercentage}%</p>
+                  </div>
+                  <div className="bg-gray-50/80 rounded-xl p-3 text-center border border-gray-100/50 shadow-sm">
+                    <p className="text-xs text-gray-500 mb-1">R:R</p>
+                    <p className="font-bold text-gray-800">{trade.riskRewardRatio ? trade.riskRewardRatio.toFixed(2) : 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer with Date - Improved */}
+              <div className="relative mt-6 pt-6 border-t border-gray-200/50">
+                <div className="flex items-center space-x-2 text-gray-500">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <p className="text-sm font-medium">
+                    {new Date(trade.createdAt).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Empty State */}
+      {filteredTrades.length === 0 && (
+        <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-gray-100/50 p-16 text-center">
+          <div className="w-24 h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded-3xl flex items-center justify-center mx-auto mb-6">
+            <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                  </svg>
+                </div>
+          <h3 className="text-2xl font-bold text-gray-900 mb-3">No trades found</h3>
+          <p className="text-gray-600 mb-8 text-lg max-w-md mx-auto">
+            {trades.length === 0 
+              ? "You haven't created any trades yet. Start your trading journey today!"
+              : "Try adjusting your filters or search terms to find trades."
+            }
+          </p>
+          {trades.length === 0 && (
+                  <button
+              onClick={() => window.location.href = '/add-trade'}
+              className="group relative bg-gradient-to-r from-emerald-500 via-teal-500 to-green-500 hover:from-emerald-600 hover:via-teal-600 hover:to-green-600 text-white px-8 py-4 rounded-2xl font-semibold transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 transform"
+                  >
+              <div className="flex items-center space-x-3">
+                <svg className="w-5 h-5 group-hover:rotate-12 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                <span>Add Your First Trade</span>
+              </div>
+                  </button>
+                )}
+              </div>
+      )}
+
+      {/* Trade Detail Modal */}
+      {selectedTrade && (
+        <TradeDetailModal
+          trade={selectedTrade}
+          onClose={() => setSelectedTrade(null)}
+          onEdit={(tradeFromModal) => {
+            const completeTradeData = {
+              ...selectedTrade,
+              ...tradeFromModal,
+              category: tradeFromModal.category || selectedTrade.category || 'FOREX',
+              id: selectedTrade.id
+            } as Trade;
+            setUpdateModalTrade(completeTradeData);
+            setSelectedTrade(null);
+          }}
+        />
+      )}
+
+      {/* Edit Trade Modal */}
+      {editModalTrade && (
+        <EditTradeModal
+          trade={editModalTrade}
+          onClose={() => setEditModalTrade(null)}
+          onSave={handleEditTrade}
+        />
+      )}
+
+      {/* Update Trade Modal */}
+      {updateModalTrade && (
+        <UpdateTradeModal
+          trade={updateModalTrade}
+          isOpen={!!updateModalTrade}
+          onClose={() => setUpdateModalTrade(null)}
+          onUpdate={handleUpdateTrade}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModalTrade && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 w-full max-w-md p-8 transform transition-all duration-300">
+            <div className="text-center">
+              <div className="w-20 h-20 bg-gradient-to-br from-red-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">Delete Trade</h3>
+              <p className="text-gray-600 mb-2">Are you sure you want to delete</p>
+              <p className="text-lg font-semibold text-gray-900 mb-6">{deleteModalTrade.symbol}?</p>
+              <p className="text-sm text-red-600 mb-8">This action cannot be undone.</p>
+              
+              <div className="flex space-x-4">
+                <button
+                  onClick={() => setDeleteModalTrade(null)}
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-3 rounded-xl font-semibold transition-colors duration-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDeleteTrade(deleteModalTrade.id)}
+                  className="flex-1 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+            </div>
+  );
+}
+
+// Journal Entries Section Component
+function JournalEntriesSection({ entries }: { entries: JournalEntry[] }) {
+  const [filteredEntries, setFilteredEntries] = useState<JournalEntry[]>(entries);
+  const [filterMood, setFilterMood] = useState('ALL');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState<'date' | 'mood' | 'confidence'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  // Filter and search entries
+  useEffect(() => {
+    let filtered = [...entries];
+
+    // Filter by mood
+    if (filterMood !== 'ALL') {
+      filtered = filtered.filter(entry => entry.mood === filterMood);
+    }
+
+    // Search by title, content, or tags
+    if (searchTerm) {
+      filtered = filtered.filter(entry => 
+        entry.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        entry.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (entry.tags || []).some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+    }
+
+    // Sort entries
+    filtered.sort((a, b) => {
+      let aValue, bValue;
+      
+      switch (sortBy) {
+        case 'date':
+          aValue = new Date(a.createdAt).getTime();
+          bValue = new Date(b.createdAt).getTime();
+          break;
+        case 'mood':
+          aValue = a.mood;
+          bValue = b.mood;
+          break;
+        case 'confidence':
+          aValue = a.confidence;
+          bValue = b.confidence;
           break;
         default:
           return 0;
@@ -352,1076 +1726,905 @@ export default function TradingJournal() {
       }
     });
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'PLANNING': return 'bg-blue-100 text-blue-800';
-      case 'OPEN': return 'bg-yellow-100 text-yellow-800';
-      case 'WIN': return 'bg-green-100 text-green-800';
-      case 'LOSS': return 'bg-red-100 text-red-800';
-      // Legacy support
-      case 'PLANNED': return 'bg-blue-100 text-blue-800';
-      case 'ACTIVE': return 'bg-yellow-100 text-yellow-800';
-      case 'CLOSED': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getDirectionColor = (direction: string) => {
-    return direction === 'LONG'
-      ? 'text-green-600'
-      : 'text-red-600';
-  };
-
-  if (isLoading || loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[80vh]">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading your trading journal...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return null; // Will redirect in useEffect
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      {/* Page Header */}
-      <div className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="container mx-auto px-6 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-                <div className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center mr-3 shadow-lg">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                  </svg>
-                </div>
-                Trading Journal
-              </h1>
-              <p className="text-gray-600 mt-1">Track and analyze your trading performance</p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <p className="text-sm text-gray-500">Total Trades</p>
-                <p className="text-2xl font-bold text-gray-900">{trades.length}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="container mx-auto px-6 py-8">
-        {/* Page Content */}
-        <div className="space-y-8">
-
-          {/* Enhanced Performance Overview Cards */}
-          {stats && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {/* Net P&L */}
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 hover:shadow-xl transition-all duration-300">
-              <div className="flex items-center justify-between mb-4">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                  stats.netPnL >= 0
-                    ? 'bg-green-100 text-green-600'
-                    : 'bg-red-100 text-red-600'
-                }`}>
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={stats.netPnL >= 0 ? "M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" : "M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"} />
-                  </svg>
-                </div>
-                <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                  NET P&L
-                </span>
-              </div>
-              <div className="space-y-2">
-                <p className={`text-3xl font-bold ${stats.netPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  ${stats.netPnL >= 0 ? '+' : ''}${stats.netPnL.toFixed(2)}
-                </p>
-                <p className="text-sm text-gray-600">
-                  {stats.totalTrades} trades • {stats.winningTrades}W / {stats.losingTrades}L
-                </p>
-              </div>
-            </div>
-
-            {/* Win Rate */}
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 hover:shadow-xl transition-all duration-300">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                  WIN RATE
-                </span>
-              </div>
-              <div className="space-y-3">
-                <p className="text-3xl font-bold text-blue-600">
-                  {stats.winRate.toFixed(1)}%
-                </p>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-gradient-to-r from-blue-500 to-indigo-500 h-2 rounded-full transition-all duration-1000 ease-out"
-                    style={{ width: `${Math.min(stats.winRate, 100)}%` }}
-                  ></div>
-                </div>
-                <p className="text-sm text-gray-600">
-                  {stats.winningTrades} wins • {stats.losingTrades} losses
-                </p>
-              </div>
-            </div>
-
-            {/* Profit Factor */}
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 hover:shadow-xl transition-all duration-300">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
-                  </svg>
-                </div>
-                <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                  PROFIT FACTOR
-                </span>
-              </div>
-              <div className="space-y-2">
-                <p className="text-3xl font-bold text-purple-600">
-                  {stats.profitFactor === Infinity ? '∞' : stats.profitFactor.toFixed(2)}
-                </p>
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-gray-600">
-                    Avg R:R {stats.avgRiskReward.toFixed(2)}
-                  </p>
-                  <div className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                    stats.profitFactor >= 2 ? 'bg-green-100 text-green-700' :
-                    stats.profitFactor >= 1.5 ? 'bg-yellow-100 text-yellow-700' :
-                    'bg-red-100 text-red-700'
-                  }`}>
-                    {stats.profitFactor >= 2 ? 'Excellent' : stats.profitFactor >= 1.5 ? 'Good' : 'Poor'}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Current Streak */}
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 hover:shadow-xl transition-all duration-300">
-              <div className="flex items-center justify-between mb-4">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                  stats.streakType === 'win' ? 'bg-green-100 text-green-600' :
-                  stats.streakType === 'loss' ? 'bg-red-100 text-red-600' :
-                  'bg-gray-100 text-gray-600'
-                }`}>
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                </div>
-                <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                  STREAK
-                </span>
-              </div>
-              <div className="space-y-2">
-                <p className={`text-3xl font-bold ${
-                  stats.streakType === 'win' ? 'text-green-600' :
-                  stats.streakType === 'loss' ? 'text-red-600' : 'text-gray-600'
-                }`}>
-                  {stats.currentStreak}
-                  {stats.streakType === 'win' ? 'W' : stats.streakType === 'loss' ? 'L' : ''}
-                </p>
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-gray-600">
-                    Best: {stats.largestWinStreak}W
-                  </p>
-                  <div className="flex space-x-1">
-                    {[...Array(Math.min(stats.currentStreak, 5))].map((_, i) => (
-                      <div key={i} className={`w-2 h-2 rounded-full ${
-                        stats.streakType === 'win' ? 'bg-green-500' :
-                        stats.streakType === 'loss' ? 'bg-red-500' : 'bg-gray-500'
-                      }`}></div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          )}
-
-        {/* Enhanced Controls */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 mb-8">
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2 flex items-center">
-              <div className="w-8 h-8 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center mr-3">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
-                </svg>
-              </div>
-              Filters & Search
-            </h2>
-            <p className="text-gray-600">Filter and search through your trading history</p>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {/* Search */}
-            <div className="lg:col-span-2">
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
-                Search Trades
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search by symbol, notes, or tags..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-12 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 focus:bg-white placeholder-gray-500 transition-all duration-200"
-                />
-                {searchTerm && (
-                  <button
-                    onClick={() => setSearchTerm('')}
-                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Status Filter */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
-                Status
-              </label>
-              <div className="relative">
-                <select
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 focus:bg-white transition-all duration-200 appearance-none cursor-pointer"
-                >
-                  <option value="ALL">All Trades</option>
-                  <option value="PLANNING">Planning</option>
-                  <option value="OPEN">Open</option>
-                  <option value="WIN">Win</option>
-                  <option value="LOSS">Loss</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            {/* Sort By */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
-                Sort By
-              </label>
-              <div className="relative">
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 focus:bg-white transition-all duration-200 appearance-none cursor-pointer"
-                >
-                  <option value="date">Date Created</option>
-                  <option value="profit">Profit/Loss</option>
-                  <option value="symbol">Symbol</option>
-                  <option value="rr">Risk:Reward</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-
-          </div>
-
-          {/* Enhanced View Mode Toggle */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-10 pt-8 border-t-2 border-gray-200 gap-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-6">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full flex items-center justify-center">
-                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
-                </div>
-                <span className="text-lg font-bold text-gray-700">View Mode</span>
-              </div>
-              <div className="flex bg-gray-100 rounded-2xl p-2 shadow-lg backdrop-blur-sm">
-                <button
-                  onClick={() => setViewMode('cards')}
-                  className={`px-6 py-3 rounded-xl text-sm font-bold transition-all duration-300 flex items-center space-x-2 ${
-                    viewMode === 'cards'
-                      ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/25 scale-105'
-                      : 'text-gray-600 hover:text-emerald-600 hover:bg-white/50'
-                  }`}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14-7H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2z" />
-                  </svg>
-                  <span>Cards</span>
-                </button>
-                <button
-                  onClick={() => setViewMode('table')}
-                  className={`px-6 py-3 rounded-xl text-sm font-bold transition-all duration-300 flex items-center space-x-2 ${
-                    viewMode === 'table'
-                      ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/25 scale-105'
-                      : 'text-gray-600 hover:text-emerald-600 hover:bg-white/50'
-                  }`}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                  <span>Table</span>
-                </button>
-                <button
-                  onClick={() => setViewMode('analytics')}
-                  className={`px-6 py-3 rounded-xl text-sm font-bold transition-all duration-300 flex items-center space-x-2 ${
-                    viewMode === 'analytics'
-                      ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/25 scale-105'
-                      : 'text-gray-600 hover:text-emerald-600 hover:bg-white/50'
-                  }`}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                  <span>Analytics</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-3 bg-gray-50 px-6 py-3 rounded-2xl shadow-lg backdrop-blur-sm">
-              <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
-              <span className="text-sm font-bold text-gray-700">
-                Showing {filteredAndSortedTrades.length} of {trades.length} trades
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Error Message */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
-            <p className="text-red-600">{error}</p>
-          </div>
-        )}
-
-        {/* Content Based on View Mode */}
-        {viewMode === 'analytics' && stats ? (
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
-            <h3 className="text-2xl font-bold text-gray-900 mb-4">Analytics View</h3>
-            <p className="text-gray-600">Analytics view coming soon...</p>
-          </div>
-        ) : filteredAndSortedTrades.length === 0 ? (
-          <div className="text-center py-24">
-            <div className="relative mb-12">
-              <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-full blur-3xl"></div>
-              <div className="relative w-32 h-32 bg-gradient-to-br from-gray-100 to-gray-200 rounded-3xl flex items-center justify-center mx-auto shadow-2xl">
-                <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-            </div>
-            <h3 className="text-3xl font-bold text-gray-900 mb-4">
-              No trades found
-            </h3>
-            <p className="text-xl text-gray-500 mb-8 max-w-md mx-auto leading-relaxed">
-              {trades.length === 0
-                ? "Start your trading journey by calculating and saving your first trade"
-                : "Try adjusting your search terms or filters to find your trades"
-              }
-            </p>
-            {trades.length === 0 && (
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <button
-                  onClick={() => router.push('/')}
-                  className="px-8 py-4 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-2xl transition-all duration-200 font-bold shadow-lg hover:shadow-xl hover:scale-105 flex items-center space-x-3"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                  </svg>
-                  <span>Go to Calculator</span>
-                </button>
-                <button
-                  onClick={() => router.push('/add-trade')}
-                  className="px-8 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-2xl transition-all duration-200 font-bold shadow-lg hover:shadow-xl hover:scale-105 flex items-center space-x-3"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  <span>Add Trade</span>
-                </button>
-              </div>
-            )}
-          </div>
-        ) : viewMode === 'cards' ? (
-          <CardsView
-            trades={filteredAndSortedTrades}
-            onTradeClick={setSelectedTrade}
-            onStatusUpdate={handleStatusUpdate}
-            onTradeUpdate={handleTradeUpdate}
-            onTradeDelete={handleTradeDelete}
-            onOpenUpdateModal={setUpdateModalTrade}
-          />
-        ) : (
-          <TableView
-            trades={filteredAndSortedTrades}
-            onTradeClick={setSelectedTrade}
-            onStatusUpdate={handleStatusUpdate}
-            onTradeUpdate={handleTradeUpdate}
-            onTradeDelete={handleTradeDelete}
-            onOpenUpdateModal={setUpdateModalTrade}
-          />
-        )}
-
-        {/* Trade Detail Modal */}
-        {selectedTrade && (
-          <TradeDetailModal
-            trade={selectedTrade}
-            onClose={() => setSelectedTrade(null)}
-          />
-        )}
-
-        {/* Update Trade Modal */}
-        {updateModalTrade && (
-          <UpdateTradeModal
-            trade={updateModalTrade}
-            isOpen={!!updateModalTrade}
-            onClose={() => setUpdateModalTrade(null)}
-            onUpdate={handleTradeUpdate}
-          />
-        )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Cards View Component
-function CardsView({
-  trades,
-  onTradeClick,
-  onStatusUpdate,
-  onTradeUpdate,
-  onTradeDelete,
-  onOpenUpdateModal
-}: {
-  trades: Trade[],
-  onTradeClick: (trade: Trade) => void,
-  onStatusUpdate: (tradeId: string, newStatus: string) => void,
-  onTradeUpdate: (tradeId: string, updateData: any) => void,
-  onTradeDelete: (tradeId: string) => void,
-  onOpenUpdateModal: (trade: Trade) => void
-}) {
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'PLANNING': return 'bg-blue-100 text-blue-800';
-      case 'OPEN': return 'bg-yellow-100 text-yellow-800';
-      case 'WIN': return 'bg-green-100 text-green-800';
-      case 'LOSS': return 'bg-red-100 text-red-800';
-      // Legacy support
-      case 'PLANNED': return 'bg-blue-100 text-blue-800';
-      case 'ACTIVE': return 'bg-yellow-100 text-yellow-800';
-      case 'CLOSED': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getDirectionColor = (direction: string) => {
-    return direction === 'LONG'
-      ? 'text-green-600'
-      : 'text-red-600';
-  };
-
-  const getPnLColor = (trade: Trade) => {
-    const pnl = trade.profitDollars - trade.lossDollars;
-    return pnl >= 0 ? 'text-green-600' : 'text-red-600';
-  };
-
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
-      {trades.map((trade) => (
-        <div
-          key={trade.id}
-          onClick={() => onTradeClick(trade)}
-          className="group relative bg-white rounded-2xl shadow-lg border border-gray-200 p-8 hover:shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer overflow-visible"
-        >
-          {/* Background Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/50 via-transparent to-teal-50/50 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-
-          {/* Content */}
-          <div className="relative z-10">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/25 group-hover:shadow-emerald-500/40 transition-all duration-300">
-                  <span className="text-white font-bold text-xl">
-                    {trade.symbol.split('/')[0].charAt(0)}
-                  </span>
-                </div>
-                <div className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">
-                    {trade.category.charAt(0)}
-                  </span>
-                </div>
-              </div>
-              <div>
-                <h3 className="text-2xl font-bold text-gray-900 group-hover:text-emerald-600 transition-colors duration-300">
-                  {trade.symbol}
-                </h3>
-                <div className="flex items-center space-x-2 mt-1">
-                  <span className="text-sm font-medium text-gray-500">
-                    {trade.category}
-                  </span>
-                  <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-                  <span className="text-xs text-gray-400">
-                    {new Date(trade.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div onClick={(e) => e.stopPropagation()}>
-              <TradeStatusManager
-                trade={trade}
-                onStatusUpdate={onStatusUpdate}
-                onTradeUpdate={onTradeUpdate}
-                onTradeDelete={onTradeDelete}
-                onOpenUpdateModal={onOpenUpdateModal}
-              />
-            </div>
-          </div>
-
-          {/* Trade Direction & P&L */}
-          <div className="bg-gray-50 rounded-2xl p-4 mb-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className={`px-4 py-2 rounded-xl text-sm font-bold shadow-lg ${
-                  trade.tradeDirection === 'LONG'
-                    ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
-                    : 'bg-gradient-to-r from-red-500 to-rose-500 text-white'
-                }`}>
-                  <div className="flex items-center space-x-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      {trade.tradeDirection === 'LONG' ? (
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
-                      ) : (
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 13l-5 5m0 0l-5-5m5 5V6" />
-                      )}
-                    </svg>
-                    <span>{trade.tradeDirection}</span>
-                  </div>
-                </div>
-                <div className="px-3 py-2 bg-blue-100 rounded-xl">
-                  <span className="text-sm font-semibold text-blue-700">
-                    R:R 1:{trade.riskRewardRatio.toFixed(2)}
-                  </span>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className={`text-2xl font-bold ${getPnLColor(trade)}`}>
-                  ${(trade.profitDollars - trade.lossDollars >= 0 ? '+' : '')}
-                  {(trade.profitDollars - trade.lossDollars).toFixed(2)}
-                </p>
-                <p className="text-xs text-gray-500 font-medium">
-                  Potential P&L
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Price Levels */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <div className="text-center p-4 bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl border border-gray-200 group-hover:shadow-lg transition-all duration-300">
-              <div className="flex items-center justify-center mb-2">
-                <div className="w-8 h-8 bg-gray-500/10 rounded-full flex items-center justify-center">
-                  <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-              </div>
-              <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider">Entry</p>
-              <p className="font-bold text-gray-900 text-lg">
-                {trade.entryPrice}
-              </p>
-            </div>
-            <div className="text-center p-4 bg-gradient-to-br from-green-50 to-emerald-100 rounded-2xl border border-green-200 group-hover:shadow-lg transition-all duration-300">
-              <div className="flex items-center justify-center mb-2">
-                <div className="w-8 h-8 bg-green-500/10 rounded-full flex items-center justify-center">
-                  <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
-                  </svg>
-                </div>
-              </div>
-              <p className="text-xs font-semibold text-green-600 mb-2 uppercase tracking-wider">Target</p>
-              <p className="font-bold text-green-700 text-lg">
-                {trade.exitPrice}
-              </p>
-            </div>
-            <div className="text-center p-4 bg-gradient-to-br from-red-50 to-rose-100 rounded-2xl border border-red-200 group-hover:shadow-lg transition-all duration-300">
-              <div className="flex items-center justify-center mb-2">
-                <div className="w-8 h-8 bg-red-500/10 rounded-full flex items-center justify-center">
-                  <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 13l-5 5m0 0l-5-5m5 5V6" />
-                  </svg>
-                </div>
-              </div>
-              <p className="text-xs font-semibold text-red-600 mb-2 uppercase tracking-wider">Stop</p>
-              <p className="font-bold text-red-700 text-lg">
-                {trade.stopLoss}
-              </p>
-            </div>
-          </div>
-
-          {/* Tags */}
-          {trade.tags.length > 0 && (
-            <div className="mb-6">
-              <p className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wider">Tags</p>
-              <div className="flex flex-wrap gap-2">
-                {trade.tags.slice(0, 3).map((tag, index) => (
-                  <span
-                    key={index}
-                    className="px-3 py-1 bg-gradient-to-r from-emerald-100 to-teal-100 text-emerald-700 rounded-full text-xs font-semibold border border-emerald-200"
-                  >
-                    #{tag}
-                  </span>
-                ))}
-                {trade.tags.length > 3 && (
-                  <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-semibold border border-gray-200">
-                    +{trade.tags.length - 3} more
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Strategy Information */}
-          {trade.strategy && (
-            <div className="mb-6">
-              <p className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wider">Strategy</p>
-              <div className="flex items-center p-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-200">
-                <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center mr-3">
-                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">{trade.strategy.name}</p>
-                  <div className="flex items-center space-x-2 mt-1">
-                    <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded-md text-xs font-medium">
-                      {trade.strategy.marketType}
-                    </span>
-                    <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-md text-xs font-medium">
-                      {trade.strategy.timeframe}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Footer */}
-          <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-            <div className="flex items-center space-x-2 text-xs text-gray-500">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <span className="font-medium">{new Date(trade.createdAt).toLocaleDateString()}</span>
-            </div>
-            <div className="flex items-center space-x-2 text-xs text-emerald-600 group-hover:text-emerald-700 transition-colors font-medium">
-              <span>View Details</span>
-              <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </div>
-          </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// Table View Component
-function TableView({
-  trades,
-  onTradeClick,
-  onStatusUpdate,
-  onTradeUpdate,
-  onTradeDelete,
-  onOpenUpdateModal
-}: {
-  trades: Trade[],
-  onTradeClick: (trade: Trade) => void,
-  onStatusUpdate: (tradeId: string, newStatus: string) => void,
-  onTradeUpdate: (tradeId: string, updateData: any) => void,
-  onTradeDelete: (tradeId: string) => void,
-  onOpenUpdateModal: (trade: Trade) => void
-}) {
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'PLANNING': return 'bg-blue-100 text-blue-800';
-      case 'OPEN': return 'bg-yellow-100 text-yellow-800';
-      case 'WIN': return 'bg-green-100 text-green-800';
-      case 'LOSS': return 'bg-red-100 text-red-800';
-      // Legacy support
-      case 'PLANNED': return 'bg-blue-100 text-blue-800';
-      case 'ACTIVE': return 'bg-yellow-100 text-yellow-800';
-      case 'CLOSED': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getDirectionColor = (direction: string) => {
-    return direction === 'LONG'
-      ? 'text-green-600'
-      : 'text-red-600';
-  };
-
-  const getPnLColor = (trade: Trade) => {
-    const pnl = trade.profitDollars - trade.lossDollars;
-    return pnl >= 0 ? 'text-green-600' : 'text-red-600';
-  };
-
-  return (
-    <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-      <div className="overflow-x-auto overflow-y-visible">
-        <table className="w-full">
-          <thead className="bg-gradient-to-r from-emerald-50 to-teal-50">
-            <tr>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                Symbol
-              </th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                Strategy
-              </th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                Direction
-              </th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                Entry
-              </th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                Target
-              </th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                Stop Loss
-              </th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                R:R
-              </th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                P&L
-              </th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-32">
-                Status
-              </th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                Date
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {trades.map((trade) => (
-              <tr
-                key={trade.id}
-                onClick={() => onTradeClick(trade)}
-                className="hover:bg-emerald-50 cursor-pointer transition-colors duration-200"
-              >
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center mr-3">
-                      <span className="text-white font-bold text-sm">
-                        {trade.symbol.split('/')[0].charAt(0)}
-                      </span>
-                    </div>
-                    <div>
-                      <div className="text-sm font-semibold text-gray-900">
-                        {trade.symbol}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {trade.category}
-                      </div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {trade.strategy ? (
-                    <div className="flex items-center">
-                      <div className="w-6 h-6 bg-indigo-500 rounded-lg flex items-center justify-center mr-2">
-                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                        </svg>
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {trade.strategy.name}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {trade.strategy.timeframe}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-gray-400 italic">No strategy</span>
-                  )}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-lg ${getDirectionColor(trade.tradeDirection)} bg-gray-100`}>
-                    {trade.tradeDirection}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                  {trade.entryPrice}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
-                  {trade.exitPrice}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-red-600">
-                  {trade.stopLoss}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                  1:{trade.riskRewardRatio.toFixed(2)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className={`text-sm font-bold ${getPnLColor(trade)}`}>
-                    ${(trade.profitDollars - trade.lossDollars >= 0 ? '+' : '')}
-                    {(trade.profitDollars - trade.lossDollars).toFixed(2)}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap w-32 relative" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex justify-start">
-                    <TradeStatusManager
-                      trade={trade}
-                      onStatusUpdate={onStatusUpdate}
-                      onTradeUpdate={onTradeUpdate}
-                      onTradeDelete={onTradeDelete}
-                      onOpenUpdateModal={onOpenUpdateModal}
-                    />
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {new Date(trade.createdAt).toLocaleDateString()}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-// Analytics View Component
-function AnalyticsView({ stats, trades }: { stats: JournalStats, trades: Trade[] }) {
-  const categoryBreakdown = trades.reduce((acc, trade) => {
-    acc[trade.category] = (acc[trade.category] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-
-  const monthlyBreakdown = trades.reduce((acc, trade) => {
-    const month = new Date(trade.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
-    acc[month] = (acc[month] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+    setFilteredEntries(filtered);
+  }, [entries, filterMood, searchTerm, sortBy, sortOrder]);
 
   return (
     <div className="space-y-8">
-      {/* Detailed Statistics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Advanced Metrics */}
-        <div className="bg-white rounded-3xl shadow-xl border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center mr-3">
-              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
+      {/* Filters and Search */}
+      <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-gray-100/50 p-8">
+        <div className="flex flex-col lg:flex-row gap-6 items-center justify-between">
+          <div className="flex flex-col md:flex-row gap-4 w-full lg:w-auto">
+            {/* Mood Filter */}
+              <div className="relative">
+                <select
+                value={filterMood}
+                onChange={(e) => setFilterMood(e.target.value)}
+                className="appearance-none px-6 py-4 pr-12 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white/80 backdrop-blur-sm font-medium text-gray-700 shadow-lg transition-all duration-300"
+              >
+                <option value="ALL">All Moods</option>
+                {moods.map((mood) => (
+                  <option key={mood.value} value={mood.value}>
+                    {mood.label}
+                  </option>
+                ))}
+                </select>
+              <div className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+              </div>
             </div>
-            Advanced Metrics
-          </h3>
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600">Best Trade:</span>
-              <span className="font-bold text-green-600">
-                ${stats.bestTrade.toFixed(2)}
-              </span>
+
+            {/* Sort Options */}
+              <div className="relative">
+                <select
+                value={`${sortBy}-${sortOrder}`}
+                onChange={(e) => {
+                  const [field, order] = e.target.value.split('-');
+                  setSortBy(field as 'date' | 'mood' | 'confidence');
+                  setSortOrder(order as 'asc' | 'desc');
+                }}
+                className="appearance-none px-6 py-4 pr-12 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white/80 backdrop-blur-sm font-medium text-gray-700 shadow-lg transition-all duration-300"
+              >
+                <option value="date-desc">
+                  <svg className="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  Newest First
+                </option>
+                <option value="date-asc">
+                  <svg className="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  Oldest First
+                </option>
+                <option value="confidence-desc">
+                  <svg className="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                  </svg>
+                  Highest Confidence
+                </option>
+                <option value="confidence-asc">
+                  <svg className="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                  </svg>
+                  Lowest Confidence
+                </option>
+                <option value="mood-asc">
+                  <svg className="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Mood A-Z
+                </option>
+                <option value="mood-desc">
+                  <svg className="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Mood Z-A
+                </option>
+                </select>
+              <div className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600">Worst Trade:</span>
-              <span className="font-bold text-red-600">
-                ${stats.worstTrade.toFixed(2)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600">Avg Win:</span>
-              <span className="font-bold text-green-600">
-                ${stats.avgWin.toFixed(2)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600">Avg Loss:</span>
-              <span className="font-bold text-red-600">
-                ${stats.avgLoss.toFixed(2)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600">Largest Win Streak:</span>
-              <span className="font-bold text-emerald-600">
-                {stats.largestWinStreak}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600">Largest Loss Streak:</span>
-              <span className="font-bold text-red-600">
-                {stats.largestLossStreak}
-              </span>
-            </div>
+
+          {/* Search */}
+          <div className="relative w-full lg:w-80">
+            <input
+              type="text"
+              placeholder="Search entries, content, or tags..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-14 pr-6 py-4 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white/80 backdrop-blur-sm font-medium text-gray-700 shadow-lg transition-all duration-300"
+            />
+            <div className="absolute left-5 top-1/2 transform -translate-y-1/2">
+              <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+            {searchTerm && (
+                <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-5 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-300"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+            )}
           </div>
         </div>
 
-        {/* Category Breakdown */}
-        <div className="bg-white rounded-3xl shadow-xl border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center mr-3">
-              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
-              </svg>
-            </div>
-            By Category
-          </h3>
-          <div className="space-y-3">
-            {Object.entries(categoryBreakdown).map(([category, count]) => (
-              <div key={category} className="flex items-center justify-between">
-                <span className="text-gray-600">{category}:</span>
-                <div className="flex items-center space-x-2">
-                  <div className="w-16 bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-gradient-to-r from-blue-500 to-cyan-500 h-2 rounded-full"
-                      style={{ width: `${(count / stats.totalTrades) * 100}%` }}
-                    ></div>
-                  </div>
-                  <span className="font-semibold text-gray-900 text-sm">
-                    {count}
-                  </span>
-                </div>
-              </div>
-            ))}
+        {/* Results Count */}
+        <div className="mt-6 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+            <span className="text-sm font-medium text-gray-600">
+              Showing {filteredEntries.length} of {entries.length} journal entries
+            </span>
           </div>
-        </div>
-
-        {/* Monthly Activity */}
-        <div className="bg-white rounded-3xl shadow-xl border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center mr-3">
-              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
+          {filteredEntries.length > 0 && (
+            <div className="text-sm text-gray-500">
+              Avg Confidence: <span className="font-bold text-purple-600">
+                {(filteredEntries.reduce((sum, entry) => sum + entry.confidence, 0) / filteredEntries.length).toFixed(1)}/5
+              </span>
             </div>
-            Monthly Activity
-          </h3>
-          <div className="space-y-3">
-            {Object.entries(monthlyBreakdown).slice(-6).map(([month, count]) => (
-              <div key={month} className="flex items-center justify-between">
-                <span className="text-gray-600">{month}:</span>
-                <div className="flex items-center space-x-2">
-                  <div className="w-16 bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full"
-                      style={{ width: `${(count / Math.max(...Object.values(monthlyBreakdown))) * 100}%` }}
-                    ></div>
-                  </div>
-                  <span className="font-semibold text-gray-900 text-sm">
-                    {count}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
+          )}
         </div>
       </div>
 
-      {/* Performance Insights */}
-      <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 dark:border-gray-700/50 p-8">
-        <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
-          <div className="w-10 h-10 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center mr-4">
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-          </div>
-          Performance Insights
-        </h3>
+      {/* Journal Entries Grid */}
+      <div className="space-y-8">
+        {filteredEntries.length > 0 ? filteredEntries.map((entry) => {
+          const moodData = moods.find(m => m.value === entry.mood);
+          const marketConditionData = marketConditions.find(mc => mc.value === entry.marketCondition);
+          
+          return (
+            <div key={entry.id} className="group relative bg-white/90 backdrop-blur-sm rounded-3xl p-8 shadow-xl border border-gray-100/50 hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] transform">
+              <div className="absolute inset-0 bg-gradient-to-br from-purple-50/20 to-pink-50/20 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              
+              {/* Header */}
+              <div className="relative flex items-start justify-between mb-6">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-4 mb-3">
+                    <div className="w-14 h-14 bg-gradient-to-br from-purple-400 via-pink-500 to-red-400 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                      <span className="text-white">
+                        {moodData?.icon || (
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                          </svg>
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-gray-900 text-2xl group-hover:text-purple-600 transition-colors duration-300 mb-1">
+                        {entry.title}
+                      </h3>
+                      <div className="flex items-center space-x-4 text-sm text-gray-600">
+                        <div className="flex items-center space-x-1">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                          <span className="font-medium">
+                            {new Date(entry.createdAt).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                        </div>
+                        {entry.marketCondition && (
+                          <div className="flex items-center space-x-1">
+                            <span className="text-gray-600">
+                              {marketConditionData?.icon || (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                              )}
+                            </span>
+                            <span className="font-medium capitalize">{entry.marketCondition}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+              </div>
+            </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Win Rate Analysis */}
-          <div>
-            <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Win Rate Analysis</h4>
-            <div className="relative">
-              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-4 mb-4">
-                <div
-                  className="bg-gradient-to-r from-green-500 to-emerald-500 h-4 rounded-full flex items-center justify-center"
-                  style={{ width: `${stats.winRate}%` }}
+                {/* Confidence Level */}
+                <div className="flex flex-col items-end space-y-2">
+                  <span className="text-sm font-medium text-gray-600">Confidence</span>
+                  <div className="flex items-center space-x-1">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <div
+                        key={i}
+                        className={`w-4 h-4 rounded-full transition-all duration-300 ${
+                          i <= entry.confidence 
+                            ? 'bg-gradient-to-r from-emerald-400 to-emerald-600 shadow-lg scale-110' 
+                            : 'bg-gray-200'
+                        }`}
+                      />
+                    ))}
+            </div>
+                  <span className="text-xs font-bold text-emerald-600">{entry.confidence}/5</span>
+          </div>
+        </div>
+
+              {/* Content */}
+              <div className="relative mb-6">
+                <div className="bg-gradient-to-r from-gray-50/80 to-white/80 rounded-2xl p-6 border border-gray-100">
+                  <p className="text-gray-700 leading-relaxed text-lg font-medium">{entry.content}</p>
+                </div>
+              </div>
+
+              {/* Lessons and Goals */}
+              {(entry.lessons || entry.goals) && (
+                <div className="relative grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  {entry.lessons && (
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
+                      <div className="flex items-center space-x-2 mb-3">
+                        <div className="w-8 h-8 bg-blue-100 rounded-xl flex items-center justify-center">
+                          <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                          </svg>
+                        </div>
+                        <h4 className="font-bold text-blue-900">Lessons Learned</h4>
+                      </div>
+                      <p className="text-blue-800 font-medium">{entry.lessons}</p>
+          </div>
+        )}
+
+                  {entry.goals && (
+                    <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-2xl p-6 border border-emerald-100">
+                      <div className="flex items-center space-x-2 mb-3">
+                        <div className="w-8 h-8 bg-emerald-100 rounded-xl flex items-center justify-center">
+                          <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                          </svg>
+          </div>
+                        <h4 className="font-bold text-emerald-900">Goals</h4>
+                      </div>
+                      <p className="text-emerald-800 font-medium">{entry.goals}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Tags */}
+              {entry.tags.length > 0 && (
+                <div className="relative pt-6 border-t border-gray-200/50">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                </svg>
+                    <span className="text-sm font-medium text-gray-600">Tags</span>
+              </div>
+                  <div className="flex flex-wrap gap-3">
+                    {entry.tags.map((tag, index) => (
+                      <span
+                        key={index}
+                        className="px-4 py-2 bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 rounded-2xl text-sm font-bold border border-purple-200 hover:shadow-lg transition-all duration-300"
+                      >
+                        #{tag}
+                      </span>
+                    ))}
+            </div>
+                </div>
+              )}
+            </div>
+          );
+        }) : (
+          // Enhanced Empty State
+          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-gray-100/50 p-16 text-center">
+            <div className="w-24 h-24 bg-gradient-to-br from-purple-100 to-pink-200 rounded-3xl flex items-center justify-center mx-auto mb-6">
+              <svg className="w-12 h-12 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-3">No journal entries found</h3>
+            <p className="text-gray-600 mb-8 text-lg max-w-md mx-auto">
+              {entries.length === 0 
+                ? "Start tracking your trading psychology by creating your first journal entry!"
+                : "Try adjusting your filters or search terms to find entries."
+              }
+            </p>
+            {entries.length === 0 && (
+                <button
+                onClick={() => {
+                  const newEntryBtn = document.querySelector('[data-new-entry]') as HTMLButtonElement;
+                  newEntryBtn?.click();
+                }}
+                className="group relative bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 hover:from-purple-600 hover:via-pink-600 hover:to-red-600 text-white px-8 py-4 rounded-2xl font-semibold transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 transform"
+              >
+                <div className="flex items-center space-x-3">
+                  <svg className="w-5 h-5 group-hover:rotate-12 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  <span>Create Your First Entry</span>
+              </div>
+              </button>
+            )}
+          </div>
+        )}
+        </div>
+      </div>
+  );
+}
+
+// Analytics Section Component
+function AnalyticsSection({ stats, trades }: { stats: JournalStats; trades: Trade[] }) {
+  const [activeChart, setActiveChart] = useState<'daily' | 'monthly' | 'symbols'>('daily');
+  
+  const dailyPnL = useMemo(() => {
+    if (!trades || trades.length === 0) return [];
+    const PnLByDate: { [date: string]: number } = {};
+    trades.forEach(trade => {
+      const date = new Date(trade.createdAt).toLocaleDateString('en-CA'); // YYYY-MM-DD
+      const pnl = trade.status === 'WIN' ? (trade.profitDollars || 0) : (trade.status === 'LOSS' ? -(trade.lossDollars || 0) : 0);
+      PnLByDate[date] = (PnLByDate[date] || 0) + pnl;
+    });
+
+    // Get last 30 days
+    const last30Days: { date: string; pnl: number }[] = [];
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const isoDate = date.toLocaleDateString('en-CA');
+      last30Days.push({
+        date: formattedDate,
+        pnl: PnLByDate[isoDate] || 0,
+      });
+    }
+    return last30Days;
+  }, [trades]);
+
+  const maxDailyPnL = useMemo(() => {
+    if (!dailyPnL || dailyPnL.length === 0) return 1; // Avoid division by zero
+    return Math.max(1, ...dailyPnL.map(d => Math.abs(d.pnl)));
+  }, [dailyPnL]);
+
+
+  const monthlyPerformance = useMemo(() => {
+    if (!trades || trades.length === 0) return [];
+    const performanceByMonth: { [month: string]: { profit: number; loss: number; trades: number } } = {};
+    trades.forEach(trade => {
+      const monthYear = new Date(trade.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+      if (!performanceByMonth[monthYear]) {
+        performanceByMonth[monthYear] = { profit: 0, loss: 0, trades: 0 };
+      }
+      performanceByMonth[monthYear].trades++;
+      if (trade.status === 'WIN') {
+        performanceByMonth[monthYear].profit += trade.profitDollars || 0;
+      } else if (trade.status === 'LOSS') {
+        performanceByMonth[monthYear].loss += trade.lossDollars || 0;
+      }
+    });
+    return Object.entries(performanceByMonth).map(([month, data]) => ({
+        month, 
+        ...data,
+      net: data.profit - data.loss,
+    })).sort((a, b) => new Date(b.month).getTime() - new Date(a.month).getTime());
+  }, [trades]);
+
+  const symbolPerformance = useMemo(() => {
+    if (!trades || trades.length === 0) return [];
+    const performanceBySymbol: { [symbol: string]: { trades: number; wins: number; net: number } } = {};
+    trades.forEach(trade => {
+      if (!performanceBySymbol[trade.symbol]) {
+        performanceBySymbol[trade.symbol] = { trades: 0, wins: 0, net: 0 };
+      }
+      performanceBySymbol[trade.symbol].trades++;
+      const pnl = trade.status === 'WIN' ? (trade.profitDollars || 0) : (trade.status === 'LOSS' ? -(trade.lossDollars || 0) : 0);
+      performanceBySymbol[trade.symbol].net += pnl;
+      if (trade.status === 'WIN') {
+        performanceBySymbol[trade.symbol].wins++;
+      }
+    });
+    return Object.entries(performanceBySymbol).map(([symbol, data]) => ({
+        symbol, 
+        ...data,
+      winRate: data.trades > 0 ? (data.wins / data.trades) * 100 : 0,
+    })).sort((a, b) => b.net - a.net).slice(0, 12); // Top 12 symbols
+  }, [trades]);
+
+
+  if (!stats) {
+  return (
+      <div className="bg-white backdrop-blur-sm rounded-3xl shadow-xl border border-gray-200 p-8 text-center">
+        <p className="text-gray-500">Loading analytics data...</p>
+            </div>
+    );
+  }
+  
+  const chartOptions = [
+    { id: 'daily', label: 'Daily P&L', icon: <CalendarDaysIcon className="w-5 h-5" /> },
+    { id: 'monthly', label: 'Monthly', icon: <CalendarIcon className="w-5 h-5" /> },
+    { id: 'symbols', label: 'By Symbol', icon: <TagIcon className="w-5 h-5" /> },
+  ];
+
+  return (
+    <div className="space-y-10 p-1">
+      {/* Enhanced Charts Section with Tabs */}
+      <div className="bg-white backdrop-blur-md rounded-3xl shadow-2xl border border-gray-200 overflow-hidden">
+        <div className="px-6 py-5 md:px-8 md:py-6 border-b border-gray-200">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <h3 className="text-2xl font-bold text-gray-800">Performance Charts</h3>
+            <div className="flex items-center space-x-1 bg-gray-100 rounded-xl p-1 self-start sm:self-center">
+              {chartOptions.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveChart(tab.id as any)}
+                  className={`flex items-center space-x-2 px-4 py-2.5 sm:px-5 rounded-lg font-semibold text-sm transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-orange-500 ${
+                    activeChart === tab.id
+                      ? 'bg-white text-orange-600 shadow-lg'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'
+                  }`}
                 >
-                  <span className="text-white text-xs font-bold">
-                    {stats.winRate.toFixed(1)}%
+                  {tab.icon}
+                  <span>{tab.label}</span>
+                </button>
+              ))}
+              </div>
+            </div>
+        </div>
+
+        <div className="p-6 md:p-8 min-h-[300px]">
+          {activeChart === 'daily' && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <h4 className="text-lg font-bold text-gray-800">Daily P&L (Last 30 Days)</h4>
+                <div className="text-sm text-gray-500">
+                  Total: <span className={`font-bold ${dailyPnL.reduce((sum, d) => sum + d.pnl, 0) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {dailyPnL.reduce((sum, d) => sum + d.pnl, 0) >= 0 ? '+' : ''}${dailyPnL.reduce((sum, d) => sum + d.pnl, 0).toFixed(2)}
                   </span>
                 </div>
               </div>
-              <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-                <span>0%</span>
-                <span>50%</span>
-                <span>100%</span>
+              {dailyPnL.length > 0 ? (
+                <div className="space-y-3">
+                  {dailyPnL.map((item, index) => (
+                    <div key={index} className="group flex items-center justify-between p-3.5 bg-gray-50 rounded-xl border border-gray-200 hover:shadow-md hover:border-orange-300 transition-all duration-300">
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-3 h-3 rounded-full ${item.pnl >= 0 ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
+                        <span className="text-sm font-medium text-gray-700 w-20 tabular-nums">{item.date}</span>
+                    </div>
+                      <div className="flex-1 mx-4 bg-gray-200 rounded-full h-2.5 relative overflow-hidden">
+                      <div
+                          className={`absolute top-0 h-2.5 rounded-full transition-all duration-500 ${item.pnl >= 0 ? 'bg-gradient-to-r from-emerald-400 to-emerald-600' : 'bg-gradient-to-r from-red-400 to-red-600'}`}
+                        style={{
+                            width: `${Math.min(100, (Math.abs(item.pnl) / maxDailyPnL) * 100)}%`,
+                            left: '50%',
+                            transform: item.pnl >= 0 ? 'translateX(0)' : `translateX(-100%)`,
+                        }}
+                      />
+                    </div>
+                      <span className={`text-sm font-bold w-20 text-right tabular-nums ${item.pnl >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                      {item.pnl >= 0 ? '+' : ''}${item.pnl.toFixed(2)}
+                    </span>
+                  </div>
+                  ))}
+                </div>
+              ) : (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <NewspaperIcon className="w-8 h-8 text-gray-400" />
+                </div>
+                    <p className="text-gray-500 font-medium">No trading data available</p>
+                  <p className="text-sm text-gray-400 mt-1">Start trading to see your daily P&L.</p>
+                  </div>
+                )}
+            </div>
+          )}
+
+          {activeChart === 'monthly' && (
+            <div className="space-y-6">
+              <h4 className="text-lg font-bold text-gray-800">Monthly Performance</h4>
+              {monthlyPerformance.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {monthlyPerformance.map((month, index) => (
+                    <div key={index} className="group bg-gradient-to-br from-gray-50 to-white rounded-2xl p-5 border border-gray-200 hover:shadow-xl hover:border-orange-300 transition-all duration-300 hover:scale-[1.03] transform">
+                    <div className="flex items-center justify-between mb-4">
+                        <h5 className="font-bold text-gray-800 text-md">{month.month}</h5>
+                        <span className={`px-3 py-1 rounded-lg text-xs font-bold ${month.net >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                        {month.net >= 0 ? '+' : ''}${month.net.toFixed(2)}
+                      </span>
+                    </div>
+                      <div className="grid grid-cols-3 gap-3 text-xs">
+                      <div className="text-center">
+                          <p className="text-gray-500 font-medium">Trades</p>
+                          <p className="font-bold text-lg text-gray-800">{month.trades}</p>
+                      </div>
+                      <div className="text-center">
+                          <p className="text-gray-500 font-medium">Profit</p>
+                        <p className="font-bold text-lg text-emerald-600">${month.profit.toFixed(2)}</p>
+                      </div>
+                      <div className="text-center">
+                          <p className="text-gray-500 font-medium">Loss</p>
+                        <p className="font-bold text-lg text-red-600">${month.loss.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                    <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <CalendarDaysIcon className="w-8 h-8 text-gray-400" />
+            </div>
+                  <p className="text-gray-500 font-medium">No monthly data available.</p>
+                  <p className="text-sm text-gray-400 mt-1">Complete trades to see monthly trends.</p>
+            </div>
+                )}
+          </div>
+          )}
+
+          {activeChart === 'symbols' && (
+            <div className="space-y-6">
+              <h4 className="text-lg font-bold text-gray-800">Performance by Symbol</h4>
+              {symbolPerformance.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                  {symbolPerformance.map((symbol, index) => (
+                    <div key={index} className="group bg-gradient-to-br from-gray-50 to-white rounded-2xl p-5 border border-gray-200 hover:shadow-xl hover:border-orange-300 transition-all duration-300 hover:scale-[1.03] transform">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center space-x-2.5">
+                          <div className="w-9 h-9 bg-gradient-to-br from-orange-100 to-amber-200 rounded-xl flex items-center justify-center">
+                            <span className="font-bold text-orange-600 text-sm">
+                              {symbol.symbol.length > 1 ? symbol.symbol.substring(0, symbol.symbol.indexOf('/') !== -1 ? Math.min(4,symbol.symbol.indexOf('/')) : Math.min(4, symbol.symbol.length)) : symbol.symbol}
+                          </span>
+        </div>
+                          <h5 className="font-bold text-gray-800 text-sm truncate">{symbol.symbol}</h5>
+    </div>
+                        <span className={`px-2 py-0.5 rounded-md text-xs font-bold ${
+                        symbol.net >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                      }`}>
+                        {symbol.net >= 0 ? '+' : ''}${symbol.net.toFixed(2)}
+                      </span>
+                    </div>
+                      <div className="grid grid-cols-2 gap-3 text-xs pt-2 border-t border-gray-100">
+                    <div>
+                          <p className="text-gray-500 font-medium">Trades</p>
+                          <p className="font-bold text-gray-800 text-base">{symbol.trades}</p>
+                      </div>
+                      <div>
+                          <p className="text-gray-500 font-medium">Win Rate</p>
+                          <p className="font-bold text-orange-600 text-base">{symbol.winRate.toFixed(1)}%</p>
+                      </div>
+                    </div>
+                  </div>
+                  ))}
+                </div>
+              ) : (
+                 <div className="text-center py-12">
+                    <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <TagIcon className="w-8 h-8 text-gray-400" />
+                      </div>
+                  <p className="text-gray-500 font-medium">No symbol data available.</p>
+                  <p className="text-sm text-gray-400 mt-1">Trade different symbols for a breakdown.</p>
+                        </div>
+                )}
+                      </div>
+          )}
+                  </div>
+                  </div>
+
+      {/* Enhanced Additional Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+        {[
+          { title: 'Best vs Worst', icon: <ArrowsRightLeftIcon className="w-6 h-6 text-green-600" />, data: [ { label: 'Best Trade', value: stats.bestTrade, prefix: '+', color: 'emerald' }, { label: 'Worst Trade', value: stats.worstTrade, color: 'red' } ], gradientFrom: 'from-green-500/5', gradientTo: 'to-emerald-500/5', iconBgFrom: 'from-green-100', iconBgTo: 'to-emerald-200' },
+          { title: 'Average Performance', icon: <ScaleIcon className="w-6 h-6 text-blue-600" />, data: [ { label: 'Avg Win', value: stats.avgWin, color: 'emerald' }, { label: 'Avg Loss', value: stats.avgLoss, color: 'red' } ], gradientFrom: 'from-blue-500/5', gradientTo: 'to-indigo-500/5', iconBgFrom: 'from-blue-100', iconBgTo: 'to-indigo-200' },
+          { title: 'Trade Distribution', icon: <ChartPieIcon className="w-6 h-6 text-purple-600" />, data: [ { label: 'Winning Trades', value: stats.winningTrades, color: 'emerald' }, { label: 'Losing Trades', value: stats.losingTrades, color: 'red' } ], gradientFrom: 'from-purple-500/5', gradientTo: 'to-pink-500/5', iconBgFrom: 'from-purple-100', iconBgTo: 'to-pink-200' },
+        ].map(metric => (
+          <div key={metric.title} className="group relative bg-white backdrop-blur-md rounded-3xl shadow-xl border border-gray-200 p-6 hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] transform">
+            <div className={`absolute inset-0 bg-gradient-to-br ${metric.gradientFrom} ${metric.gradientTo} rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
+          <div className="relative">
+              <div className="flex items-center space-x-3.5 mb-5">
+                <div className={`w-11 h-11 bg-gradient-to-br ${metric.iconBgFrom} ${metric.iconBgTo} rounded-xl flex items-center justify-center shadow-sm`}>
+                  {metric.icon}
+            </div>
+                <h4 className="font-bold text-gray-800 text-lg">{metric.title}</h4>
+            </div>
+              <div className="space-y-3.5">
+                {metric.data.map(item => (
+                  <div key={item.label} className={`flex justify-between items-center p-3.5 bg-gray-50 rounded-xl border border-gray-100`}>
+                    <span className="text-gray-700 font-medium text-sm">{item.label}</span>
+                    <span className={`font-bold text-base ${item.color === 'emerald' ? 'text-emerald-600' : 'text-red-600'}`}>
+                      {item.prefix || ''}{typeof item.value === 'number' ? `$${item.value.toFixed(2)}` : item.value}
+                    </span>
+            </div>
+                ))}
+            </div>
+            </div>
+            </div>
+        ))}
+                  </div>
+                </div>
+  );
+}
+
+// Insights Section Component
+function InsightsSection({ trades, entries }: { trades: Trade[]; entries: JournalEntry[] }) {
+  return (
+    <div className="space-y-8 p-1">
+      <div className="flex items-center justify-between mb-0">
+        <h2 className="text-3xl font-bold text-gray-900">Performance Calendar</h2>
+      </div>
+      <div className="bg-white backdrop-blur-md rounded-3xl shadow-2xl border border-gray-200 p-0.5 md:p-1 overflow-hidden">
+        <ProfitCalendar trades={trades} className="!shadow-none !border-none" />
+      </div>
               </div>
-            </div>
-            <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {stats.winRate >= 60 ? '🎯 Excellent win rate! You\'re consistently profitable.' :
-                 stats.winRate >= 50 ? '✅ Good win rate. Focus on improving risk management.' :
-                 stats.winRate >= 40 ? '⚠️ Below average win rate. Review your strategy.' :
-                 '🚨 Low win rate. Consider strategy adjustment.'}
-              </p>
-            </div>
+  );
+}
+
+// New Journal Entry Modal Component
+function NewJournalEntryModal({ onClose, onSave }: { onClose: () => void; onSave: (entry: JournalEntry) => void }) {
+  const { selectedAccount } = useAccount(); // Ensure useAccount is imported
+  const [formData, setFormData] = useState({
+    title: '',
+    content: '',
+    mood: 'neutral', // Default mood
+    confidence: 3, // Default confidence (1-5 scale)
+    tags: '', // Comma-separated string
+    marketCondition: '',
+    lessons: '',
+    goals: '',
+  });
+  const [saving, setSaving] = useState(false);
+
+  // Mood options - ensure these match available icons and logic
+  const moodOptions = [
+    { value: 'terrible', label: 'Terrible', icon: <FaceFrownIcon className="w-6 h-6 text-red-500" /> },
+    { value: 'bad', label: 'Bad', icon: <FaceFrownIcon className="w-6 h-6 text-orange-500" /> }, // Using Frown for bad too, adjust if specific icon exists
+    { value: 'neutral', label: 'Neutral', icon: <FaceSmileIcon className="w-6 h-6 text-yellow-500 opacity-70" /> }, // Using Smile with opacity, adjust
+    { value: 'good', label: 'Good', icon: <FaceSmileIcon className="w-6 h-6 text-green-500" /> },
+    { value: 'great', label: 'Great', icon: <SparklesIcon className="w-6 h-6 text-emerald-500" /> }, // Or a more expressive happy icon
+  ];
+  
+  // Confidence options
+  const confidenceLevels = [
+    { value: 1, label: 'Very Low' },
+    { value: 2, label: 'Low' },
+    { value: 3, label: 'Medium' },
+    { value: 4, label: 'High' },
+    { value: 5, label: 'Very High' },
+  ];
+
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAccount) {
+      // Consider using a more integrated notification system if available
+      alert('Please select an account to associate this journal entry.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const token = localStorage.getItem('token'); // Ensure this token mechanism is correct
+      const response = await fetch('/api/journal', { // Ensure API endpoint is correct
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          accountId: selectedAccount.id,
+          ...formData,
+          tags: formData.tags.split(',').map(tag => tag.trim()).filter(Boolean),
+          confidence: Number(formData.confidence), // Ensure confidence is a number
+        }),
+      });
+
+      if (response.ok) {
+        const newEntry = await response.json();
+        onSave(newEntry.entry); // Assuming API returns { entry: ... }
+        onClose(); // Close modal on successful save
+      } else {
+        const errorData = await response.json();
+        // Better error display than alert if possible
+        alert(`Failed to save journal entry: ${errorData.error || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error saving journal entry:', error);
+      alert('An unexpected error occurred while saving the journal entry.');
+    } finally {
+      setSaving(false);
+    }
+  };
+  
+  const handleTagInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Basic input handling for tags, can be enhanced with a proper tag input component later
+    setFormData({ ...formData, tags: e.target.value });
+  };
+
+
+  return (
+    <div className="fixed inset-0 bg-slate-900 bg-opacity-75 backdrop-blur-sm flex items-center justify-center z-[60] p-4 transition-opacity duration-300 ease-in-out" onClick={onClose}>
+      <div 
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden transform transition-all duration-300 ease-in-out scale-95 opacity-0 animate-modalEnter"
+        onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside modal
+      >
+        <div className="flex items-center justify-between p-5 border-b border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-900">New Journal Entry</h2>
+            <button
+              onClick={onClose}
+              disabled={saving}
+            className="p-2 rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+            aria-label="Close modal"
+            >
+            <XMarkIcon className="w-6 h-6" />
+            </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto flex-grow styled-scrollbar">
+          <div>
+            <label htmlFor="entry-title" className="block text-sm font-medium text-gray-700 mb-1.5">Title</label>
+            <input
+              id="entry-title"
+              type="text"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 placeholder-gray-400 transition-colors"
+              placeholder="e.g., Reflections on today's trades"
+              required
+              disabled={saving}
+            />
+      </div>
+
+          <div>
+            <label htmlFor="entry-content" className="block text-sm font-medium text-gray-700 mb-1.5">Content / Notes</label>
+            <textarea
+              id="entry-content"
+              value={formData.content}
+              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+              rows={5}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 placeholder-gray-400 transition-colors styled-scrollbar"
+              placeholder="Describe your thoughts, observations, rationale for trades, etc."
+              required
+              disabled={saving}
+            />
           </div>
 
-          {/* Risk Management */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div>
-            <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Risk Management</h4>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-                <span className="text-gray-600 dark:text-gray-400">Avg Risk:Reward:</span>
-                <span className={`font-bold ${stats.avgRiskReward >= 2 ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'}`}>
-                  1:{stats.avgRiskReward.toFixed(2)}
-                </span>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Mood</label>
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                {moodOptions.map(opt => (
+                  <button
+                    type="button"
+                    key={opt.value}
+                    onClick={() => setFormData({...formData, mood: opt.value})}
+                    disabled={saving}
+                    className={`p-2.5 rounded-lg border-2 flex flex-col items-center justify-center space-y-1 transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 ${
+                      formData.mood === opt.value ? 'border-orange-500 bg-orange-50' : 'border-gray-200 hover:border-gray-300 bg-white'
+                    }`}
+                    title={opt.label}
+                  >
+                    {opt.icon}
+                    <span className={`text-xs font-medium ${formData.mood === opt.value ? 'text-orange-600' : 'text-gray-600'}`}>{opt.label}</span>
+                  </button>
+                ))}
               </div>
-              <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-                <span className="text-gray-600 dark:text-gray-400">Profit Factor:</span>
-                <span className={`font-bold ${stats.profitFactor >= 1.5 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                  {stats.profitFactor === Infinity ? '∞' : stats.profitFactor.toFixed(2)}
-                </span>
+              </div>
+            <div>
+              <label htmlFor="entry-confidence" className="block text-sm font-medium text-gray-700 mb-1.5">Confidence Level ({formData.confidence}/5)</label>
+              <input
+                id="entry-confidence"
+                type="range"
+                min="1"
+                max="5"
+                step="1"
+                value={formData.confidence}
+                onChange={(e) => setFormData({ ...formData, confidence: parseInt(e.target.value) })}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-1"
+                disabled={saving}
+              />
+              <div className="flex justify-between text-xs text-gray-500 mt-1.5 px-0.5">
+                {confidenceLevels.map(level => <span key={level.value}>{level.label}</span>)}
               </div>
             </div>
-            <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {stats.avgRiskReward >= 2 ? '🎯 Excellent risk management! Keep it up.' :
-                 stats.avgRiskReward >= 1.5 ? '✅ Good risk:reward ratio.' :
-                 '⚠️ Consider improving your risk:reward ratio.'}
-              </p>
             </div>
+
+          <div>
+            <label htmlFor="entry-tags" className="block text-sm font-medium text-gray-700 mb-1.5">Tags (comma-separated)</label>
+            <input
+              id="entry-tags"
+              type="text"
+              value={formData.tags}
+              onChange={handleTagInput}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 placeholder-gray-400 transition-colors"
+              placeholder="e.g., FOMO, Scalping, News Event"
+              disabled={saving}
+            />
+            </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div>
+              <label htmlFor="entry-market-condition" className="block text-sm font-medium text-gray-700 mb-1.5">Market Condition</label>
+              <input
+                id="entry-market-condition"
+                type="text"
+              value={formData.marketCondition}
+              onChange={(e) => setFormData({ ...formData, marketCondition: e.target.value })}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 placeholder-gray-400 transition-colors"
+                placeholder="e.g., Ranging, Bullish Trend, Volatile"
+              disabled={saving}
+              />
           </div>
-        </div>
+          <div>
+              <label htmlFor="entry-lessons" className="block text-sm font-medium text-gray-700 mb-1.5">Lessons Learned</label>
+              <input
+                id="entry-lessons"
+                type="text"
+              value={formData.lessons}
+              onChange={(e) => setFormData({ ...formData, lessons: e.target.value })}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 placeholder-gray-400 transition-colors"
+                placeholder="e.g., Stick to plan, Avoid overtrading"
+              disabled={saving}
+            />
+              </div>
+          </div>
+          <div>
+            <label htmlFor="entry-goals" className="block text-sm font-medium text-gray-700 mb-1.5">Goals for Next Time</label>
+            <input
+              id="entry-goals"
+              type="text"
+              value={formData.goals}
+              onChange={(e) => setFormData({ ...formData, goals: e.target.value })}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 placeholder-gray-400 transition-colors"
+              placeholder="e.g., Improve entry timing, Manage risk better"
+              disabled={saving}
+            />
+              </div>
+        </form>
+
+        <div className="p-5 border-t border-gray-200 bg-gray-50">
+          <div className="flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="px-5 py-2.5 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 shadow-sm"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="new-journal-entry-form" // Points to form id if not wrapping form directly, here it is implicitly part of form due to onSubmit on form tag
+              onClick={handleSubmit} // Can be on the button too if form has id and button has form="id"
+              disabled={saving}
+              className="px-5 py-2.5 text-sm font-semibold text-white bg-orange-600 hover:bg-orange-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 dark:focus:ring-offset-slate-800 disabled:opacity-70 disabled:cursor-not-allowed transition-colors shadow-sm flex items-center justify-center"
+            >
+              {saving ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Saving...
+                </>
+              ) : (
+                'Save Entry'
+              )}
+            </button>
+            </div>
       </div>
+      </div>
+      <style jsx global>{`
+        .animate-modalEnter {
+          animation: modalEnterAnimation 0.3s ease-out forwards;
+        }
+        @keyframes modalEnterAnimation {
+          0% { transform: scale(0.95); opacity: 0; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        .styled-scrollbar::-webkit-scrollbar {
+          width: 8px;
+          height: 8px;
+        }
+        .styled-scrollbar::-webkit-scrollbar-thumb {
+          background-color: #cbd5e1; // slate-300
+          border-radius: 10px;
+          border: 2px solid transparent;
+          background-clip: content-box;
+        }
+        .dark .styled-scrollbar::-webkit-scrollbar-thumb {
+          background-color: #475569; // slate-600
+        }
+        .styled-scrollbar::-webkit-scrollbar-track {
+          background-color: transparent;
+        }
+        .styled-scrollbar::-webkit-scrollbar-corner {
+          background-color: transparent;
+        }
+      `}</style>
     </div>
   );
 }
+
+
+
 

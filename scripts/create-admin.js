@@ -1,3 +1,6 @@
+// Load environment variables from .env.local
+require('dotenv').config({ path: '.env.local' });
+
 const { MongoClient } = require('mongodb');
 const bcrypt = require('bcryptjs');
 
@@ -10,7 +13,7 @@ async function createAdmin() {
     await client.connect();
     console.log('Connected to MongoDB');
     
-    const db = client.db();
+    const db = client.db('tradingcalc');
     const usersCollection = db.collection('users');
     
     // Check if admin already exists

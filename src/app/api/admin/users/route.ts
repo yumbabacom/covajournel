@@ -54,8 +54,6 @@ export async function GET(request: NextRequest) {
     // Get trade statistics for each user
     const usersWithStats = await Promise.all(
       users.map(async (user) => {
-        const userId = user._id.toString();
-
         // Get user's accounts
         const accounts = await accountsCollection.find({ userId: user._id }).toArray();
 

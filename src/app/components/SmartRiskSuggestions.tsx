@@ -13,7 +13,7 @@ interface RiskSuggestion {
   riskReward: number;
   description: string;
   color: string;
-  icon: string;
+  icon: React.ReactNode;
 }
 
 const riskSuggestions: RiskSuggestion[] = [
@@ -22,21 +22,33 @@ const riskSuggestions: RiskSuggestion[] = [
     riskReward: 1.5,
     description: 'Lower risk, steady gains',
     color: 'from-blue-500 to-indigo-500',
-    icon: '🛡️'
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+      </svg>
+    )
   },
   {
     name: 'Balanced',
     riskReward: 2.0,
     description: 'Optimal risk-reward balance',
     color: 'from-green-500 to-emerald-500',
-    icon: '⚖️'
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+      </svg>
+    )
   },
   {
     name: 'Aggressive',
     riskReward: 3.0,
     description: 'Higher risk, higher reward',
     color: 'from-orange-500 to-red-500',
-    icon: '🚀'
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+      </svg>
+    )
   }
 ];
 
@@ -116,9 +128,7 @@ export default function SmartRiskSuggestions({ symbol, entryPrice, onSuggestionA
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-3">
           <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg">
-            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
+            {riskSuggestions[0].icon}
           </div>
           <div>
             <h3 className="text-lg font-bold text-purple-900 dark:text-purple-100">Smart Risk Suggestions</h3>

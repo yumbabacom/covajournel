@@ -11,7 +11,8 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  isLoading: boolean;
+  loading: boolean;
+  isHydrated: boolean;
   login: (token: string, userData: User) => void;
   logout: () => void;
 }
@@ -32,26 +33,41 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
-    // Check for existing token on mount
-    const token = localStorage.getItem('token');
-    if (token) {
-      // Verify token with backend
-      verifyToken(token);
+    // Mark as hydrated to prevent SSR mismatches
+    setIsHydrated(true);
+
+    // Check for existing token on mount - only on client side
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('token');
+      if (token) {
+        // Verify token with backend
+        verifyToken(token);
+      } else {
+        setLoading(false);
+      }
     } else {
-      setIsLoading(false);
+      setLoading(false);
     }
   }, []);
 
   const verifyToken = async (token: string) => {
     try {
+      // Set a timeout for faster loading
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
       const response = await fetch('/api/auth/verify', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         const data = await response.json();
@@ -60,27 +76,40 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // Token is invalid, remove it
         localStorage.removeItem('token');
       }
-    } catch (error) {
-      console.error('Token verification failed:', error);
+    } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Token verification timed out');
+        }
+      } else {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Token verification failed:', error);
+        }
+      }
       localStorage.removeItem('token');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   const login = (token: string, userData: User) => {
-    localStorage.setItem('token', token);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('token', token);
+    }
     setUser(userData);
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('token');
+    }
     setUser(null);
   };
 
   const value = {
     user,
-    isLoading,
+    loading,
+    isHydrated,
     login,
     logout,
   };
@@ -91,3 +120,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     </AuthContext.Provider>
   );
 }
+
+// Export the context for direct use
+export { AuthContext };

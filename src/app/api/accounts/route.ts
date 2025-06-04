@@ -89,6 +89,7 @@ export async function POST(request: NextRequest) {
       initialBalance: initialBalance,
       currentBalance: initialBalance,
       isDefault: existingAccountsCount === 0, // First account is default
+      tag: accountData.tag || 'personal', // Default to 'personal' if no tag provided
       createdAt: new Date(),
       updatedAt: new Date(),
     };

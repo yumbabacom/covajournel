@@ -34,10 +34,35 @@ export default function TradeStatusManager({
   const [dropdownPosition, setDropdownPosition] = useState<'right' | 'left'>('right');
 
   const statusOptions = [
-    { value: 'PLANNED', label: '📋 Planned', color: 'bg-blue-500' },
-    { value: 'ACTIVE', label: '⚡ Active', color: 'bg-yellow-500' },
-    { value: 'CLOSED', label: '✅ Closed', color: 'bg-green-500' },
+    { value: 'PLANNED', label: 'Planned', color: 'bg-blue-500', icon: 'clipboard' },
+    { value: 'ACTIVE', label: 'Active', color: 'bg-yellow-500', icon: 'lightning' },
+    { value: 'CLOSED', label: 'Closed', color: 'bg-green-500', icon: 'check' },
   ];
+
+  const getStatusIcon = (iconType: string) => {
+    switch (iconType) {
+      case 'clipboard':
+        return (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+        );
+      case 'lightning':
+        return (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        );
+      case 'check':
+        return (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        );
+      default:
+        return null;
+    }
+  };
 
   const handleStatusChange = async (newStatus: string) => {
     setIsLoading(true);
@@ -56,7 +81,7 @@ export default function TradeStatusManager({
     try {
       const updateData = {
         notes: editData.notes,
-        tags: editData.tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
+        tags: editData.tags.split(',').map((tag: string) => tag.trim()).filter((tag: string) => tag.length > 0),
       };
       await onTradeUpdate(trade.id, updateData);
       setIsEditing(false);
@@ -136,7 +161,10 @@ export default function TradeStatusManager({
                       >
                         <div className={`w-3 h-3 rounded-full ${status.color}`}></div>
                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                          {status.label}
+                          <div className="flex items-center space-x-2">
+                            {getStatusIcon(status.icon)}
+                            <span>{status.label}</span>
+                          </div>
                         </span>
                         {trade.status === status.value && (
                           <svg className="w-4 h-4 text-emerald-600 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -159,7 +187,12 @@ export default function TradeStatusManager({
                       }}
                       className="w-full px-3 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-lg text-sm font-medium transition-colors duration-200 shadow-md hover:shadow-lg"
                     >
-                      📝 Update Trade
+                      <div className="flex items-center justify-center space-x-2">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        <span>Update Trade</span>
+                      </div>
                     </button>
                   )}
 
